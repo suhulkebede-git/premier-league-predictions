@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "plpredict"
+version = "0.1.0"
+description = "Live points tracker for a friends' Premier League prediction league"
+requires-python = ">=3.11"
+dependencies = [
+    "openpyxl>=3.1",
+    "requests>=2.31",
+]
+
+[project.scripts]
+plpredict = "plpredict.main:cli"
+
+[tool.setuptools.packages.find]
+where = ["src"]
