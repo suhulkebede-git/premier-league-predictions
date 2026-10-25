@@ -230,7 +230,7 @@ from plpredict.history import (  # noqa: E402
 
 
 def fresh():
-    return {"snapshots": {}, "backfill": {}, "backfill_mode": None}
+    return {"snapshots": {}, "backfill": {}, "backfill_mode": None, "red_cards": {}}
 
 
 class HistoryFileTests(unittest.TestCase):
@@ -416,3 +416,24 @@ class IgnoredFilterTests(unittest.TestCase):
             path = Path(d) / "history.json"
             path.write_text(json.dumps({"snapshots": {}, "backfill": {}, "backfill_mode": "ignored"}))
             self.assertEqual(load_history(path)["backfill_mode"], "ignored")
+
+
+from plpredict.history import record_red_cards, red_cards_through  # noqa: E402
+
+
+class RedCardHistoryTests(unittest.TestCase):
+    def test_snapshot_between_gameweeks_only(self):
+        h = fresh()
+        record_red_cards(h, {"Chelsea": 2}, [1, 2], 3)  # mid-gameweek: skip
+        self.assertEqual(h["red_cards"], {})
+        with self.assertLogs("plpredict.history", "INFO"):
+            record_red_cards(h, {"Chelsea": 2, "Arsenal": 1}, [1, 2], None)
+        self.assertEqual(red_cards_through(h, 2), {"Arsenal": 1, "Chelsea": 2})
+        record_red_cards(h, {"Chelsea": 9}, [1, 2], None)  # never overwritten
+        self.assertEqual(red_cards_through(h, 2)["Chelsea"], 2)
+
+    def test_missing_counts_or_gameweeks(self):
+        h = {"snapshots": {}, "backfill": {}, "backfill_mode": None}  # older file without red_cards
+        record_red_cards(h, None, [1], None)
+        record_red_cards(h, {"Chelsea": 1}, [], None)
+        self.assertIsNone(red_cards_through(h, 1))

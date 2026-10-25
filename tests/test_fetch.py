@@ -235,3 +235,42 @@ class FetchScorersTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+from plpredict.fetch import FPL_URL, fetch_fpl_red_cards  # noqa: E402
+
+
+def fpl_body(cards):
+    """cards: list of (fpl team name, red cards) -> one player each."""
+    teams = [{"id": i + 1, "name": name} for i, (name, _) in enumerate(cards)]
+    elements = [{"id": i, "team": i + 1, "red_cards": rc} for i, (_, rc) in enumerate(cards)]
+    return {"teams": teams, "elements": elements}
+
+
+class FplRedCardTests(unittest.TestCase):
+    def test_sums_per_club_with_fpl_names(self):
+        body = fpl_body([("Spurs", 2), ("Man City", 1), ("Arsenal", 0)])
+        body["elements"].append({"id": 99, "team": 1, "red_cards": 1})  # second Spurs player
+        session = FakeSession(FakeResponse(body=body))
+        with self.assertLogs("plpredict.fetch", "INFO"):
+            counts = fetch_fpl_red_cards(resolver(), session=session)
+        self.assertEqual(counts, {"Tottenham Hotspur": 3, "Manchester City": 1, "Arsenal": 0})
+        self.assertEqual(session.calls[0][0], FPL_URL)
+
+    def test_http_error_falls_back(self):
+        with self.assertLogs("plpredict.fetch", "WARNING"):
+            self.assertIsNone(fetch_fpl_red_cards(resolver(), session=FakeSession(FakeResponse(503))))
+
+    def test_network_error_falls_back(self):
+        with self.assertLogs("plpredict.fetch", "WARNING"):
+            self.assertIsNone(fetch_fpl_red_cards(resolver(), session=FakeSession(network_error())))
+
+    def test_bad_shape_falls_back(self):
+        for body in ({"teams": []}, fpl_body([("Spurs", "2")]), {"teams": [], "elements": [{"team": 5}]}):
+            with self.assertLogs("plpredict.fetch", "WARNING"):
+                self.assertIsNone(fetch_fpl_red_cards(resolver(), session=FakeSession(FakeResponse(body=body))))
+
+    def test_unknown_club_falls_back(self):
+        with self.assertLogs("plpredict.fetch", "WARNING"):
+            self.assertIsNone(fetch_fpl_red_cards(
+                resolver(), session=FakeSession(FakeResponse(body=fpl_body([("Wolves", 1)])))))
