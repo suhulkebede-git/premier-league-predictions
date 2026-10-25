@@ -313,6 +313,9 @@ def cli(argv: list[str] | None = None) -> int:
                        help="seasons to simulate for win probabilities (default %(default)s)")
     imp = sub.add_parser("import-sheet", help="re-import the predictions spreadsheet")
     imp.add_argument("xlsx", type=Path)
+    form = sub.add_parser("apply-award", help="apply a hand-entry award from the GitHub issue form")
+    form.add_argument("--body-file", type=Path, required=True, help="the issue body (markdown)")
+    form.add_argument("--reply-file", type=Path, required=True, help="where to write the reply")
     args = parser.parse_args(argv)
 
     try:
@@ -324,6 +327,11 @@ def cli(argv: list[str] | None = None) -> int:
         if args.command == "import-sheet":
             import_sheet(args.xlsx, args.data_dir)
             return 0
+        if args.command == "apply-award":
+            from plpredict.award_form import run_form
+            saved, reply = run_form(args.body_file.read_text(encoding="utf-8"), args.data_dir)
+            args.reply_file.write_text(reply + "\n", encoding="utf-8")
+            return 0 if saved else 3
         raw = os.environ.get(TOKEN_ENV, "")
         if not raw.strip():
             log.error("Set %s to your football-data.org API token", TOKEN_ENV)

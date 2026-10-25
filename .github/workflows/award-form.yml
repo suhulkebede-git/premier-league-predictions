@@ -1,0 +1,76 @@
+name: Award form
+
+on:
+  issues:
+    types: [opened, edited]
+
+permissions:
+  contents: write # commit data/manual_awards.json (and aliases.json for a new name)
+  issues: write   # reply and close
+  actions: write  # start "Update standings" so the site refreshes now
+
+concurrency:
+  group: award-form
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    if: contains(github.event.issue.labels.*.name, 'award')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+      ISSUE: ${{ github.event.issue.number }}
+    steps:
+      - name: Only the owner and collaborators may save awards
+        if: >-
+          github.event.issue.author_association != 'OWNER' &&
+          github.event.issue.author_association != 'COLLABORATOR'
+        run: |
+          gh issue comment "$ISSUE" --repo "$GITHUB_REPOSITORY" \
+            --body "Only the repo owner and collaborators can save awards, so nothing was changed."
+          gh issue close "$ISSUE" --repo "$GITHUB_REPOSITORY" --reason "not planned"
+          exit 1
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install
+        run: pip install .
+      - name: Apply the award
+        id: apply
+        env:
+          BODY: ${{ github.event.issue.body }} # via env, never interpolated into the script
+        run: |
+          printf '%s' "$BODY" > "$RUNNER_TEMP/body.md"
+          set +e
+          plpredict apply-award --body-file "$RUNNER_TEMP/body.md" --reply-file "$RUNNER_TEMP/reply.md"
+          echo "status=$?" >> "$GITHUB_OUTPUT"
+      - name: Commit
+        if: steps.apply.outputs.status == '0'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/manual_awards.json data/aliases.json
+          if git diff --cached --quiet; then
+            echo "Already up to date." >> "$RUNNER_TEMP/reply.md"
+            exit 0
+          fi
+          git commit -m "chore(data): record award from #$ISSUE"
+          for attempt in 1 2 3; do
+            git pull --rebase --quiet && git push && break
+            sleep 5
+          done
+          gh workflow run update.yml --repo "$GITHUB_REPOSITORY" --ref main
+      - name: Reply
+        if: always() && steps.apply.outputs.status != ''
+        run: |
+          gh issue comment "$ISSUE" --repo "$GITHUB_REPOSITORY" --body-file "$RUNNER_TEMP/reply.md"
+          if [ "${{ steps.apply.outputs.status }}" = "0" ]; then
+            gh issue close "$ISSUE" --repo "$GITHUB_REPOSITORY" --reason completed
+          else
+            echo "Edit the issue to fix it; the form re-runs on every edit." | \
+              gh issue comment "$ISSUE" --repo "$GITHUB_REPOSITORY" --body-file -
+            exit 1
+          fi
