@@ -150,7 +150,8 @@ def simulate_season(
         sim = played + [Match(m.utc_date, "FINISHED", m.home, m.away,
                               int(home_goals[i, s]), int(away_goals[i, s]), matchday=m.matchday)
                         for i, m in enumerate(todo)]
-        table = table_after([(1, m) for m in sim], 1, clubs, list(adjustments))
+        # Gameweek 38: every result and every deduction counts in the final table.
+        table = table_after([(1, m) for m in sim], 38, clubs, list(adjustments))
         awards = resolve_awards(table, sim, [], pset, held, aliases, season_end)
         scores = score_all(pset.predictions, table, clubs, awards)
         leaders = [sc for sc in scores if sc.rank == 1]
