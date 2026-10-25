@@ -272,3 +272,87 @@ class ManualFromGameweekTests(unittest.TestCase):
             self.path.write_text(json.dumps({"pfa_player": {"leaders": [], "from_gameweek": bad}}))
             with self.assertRaisesRegex(ManualAwardsError, "from_gameweek"):
                 load_manual_awards(self.path, self.names)
+
+
+from plpredict.awards import _race  # noqa: E402
+from plpredict.models import RaceEntry  # noqa: E402
+
+
+class RaceHelperTests(unittest.TestCase):
+    def test_top_three_with_competition_ranks(self):
+        items = [("a", 10), ("b", 8), ("c", 8), ("d", 7), ("e", 5)]
+        race = _race(items, lambda kv: kv[1], lambda kv: kv[0])
+        self.assertEqual(race, (RaceEntry(1, "a", 10), RaceEntry(2, "b", 8), RaceEntry(2, "c", 8)))
+
+    def test_tie_for_third_keeps_everyone(self):
+        items = [("a", 9), ("b", 8), ("c", 7), ("d", 7), ("e", 6)]
+        race = _race(items, lambda kv: kv[1], lambda kv: kv[0])
+        self.assertEqual([e.name for e in race], ["a", "b", "c", "d"])
+        self.assertEqual([e.rank for e in race], [1, 2, 3, 3])
+
+    def test_lowest_first_and_shown_value(self):
+        items = [("a", 3.6), ("b", -2.4)]
+        race = _race(items, lambda kv: kv[1], lambda kv: kv[0], best=min)
+        self.assertEqual(race, (RaceEntry(1, "b", -2), RaceEntry(2, "a", 4)))
+
+    def test_empty(self):
+        self.assertEqual(_race([], lambda x: x, lambda x: x), ())
+
+
+class AwardValueTests(unittest.TestCase):
+    def test_golden_boot_value_and_race(self):
+        # Spec example: Haaland 10, Joao Pedro 8, Saka 7.
+        scorers = [Scorer("Bukayo Saka", 7, 3), Scorer("Erling Haaland", 10, 1),
+                   Scorer("João Pedro", 8, 0), Scorer("Cole Palmer", 2, 4)]
+        boot = resolve(scorers=scorers)["golden_boot"]
+        self.assertEqual(boot.value, 10)
+        self.assertEqual([(e.rank, e.name, e.value) for e in boot.race],
+                         [(1, "Erling Haaland", 10), (2, "João Pedro", 8), (3, "Bukayo Saka", 7)])
+        assists = resolve(scorers=scorers)["top_assister"]
+        self.assertEqual((assists.value, [e.name for e in assists.race]),
+                         (4, ["Cole Palmer", "Bukayo Saka", "Erling Haaland"]))
+
+    def test_best_defense_shows_goals_conceded(self):
+        s = resolve(table(Arsenal={"goals_against": 3}, Chelsea={"goals_against": 5},
+                          Everton={"goals_against": 6}))["best_defense"]
+        self.assertEqual(s.value, 3)
+        self.assertEqual([(e.name, e.value) for e in s.race],
+                         [("Arsenal", 3), ("Chelsea", 5), ("Everton", 6)])
+
+    def test_clean_sheets_value(self):
+        matches = [m("Arsenal", "Hull City", 2, 0), m("Chelsea", "Arsenal", 0, 0),
+                   m("Leeds United", "Fulham", 1, 0)]
+        s = resolve(matches=matches)["most_clean_sheets"]
+        self.assertEqual((s.leaders, s.value), (("Arsenal",), 2))
+        self.assertEqual([(e.rank, e.name) for e in s.race],
+                         [(1, "Arsenal"), (2, "Chelsea"), (2, "Leeds United")])
+
+    def test_title_margin_value_and_points_race(self):
+        s = resolve(table(**{"AFC Bournemouth": {"points": 45}}))["title_margin"]
+        self.assertEqual((s.leaders, s.value), ((6,), 6))
+        self.assertEqual([(e.name, e.value) for e in s.race],
+                         [("AFC Bournemouth", 45), ("Arsenal", 39), ("Aston Villa", 38)])
+
+    def test_pace_change_rounded(self):
+        s = resolve(table(Arsenal={"points": 45}))["biggest_increase"]
+        self.assertEqual(s.race[0].name, "Arsenal")
+        self.assertEqual(s.value, round(45 * 38 / 10 - 50))
+
+    def test_promoted_position(self):
+        self.assertEqual(resolve()["highest_promoted"].value, 7)
+
+    def test_threshold_race_shows_nearest_clubs(self):
+        s = resolve()
+        self.assertEqual([e.name for e in s["any_over_90"].race][:1], ["AFC Bournemouth"])
+        self.assertEqual(s["any_over_90"].value, None)
+        self.assertEqual([e.value for e in s["any_under_25"].race], [21, 22, 23])
+
+    def test_christmas_values_are_points(self):
+        matches = [m("Arsenal", "Hull City", 2, 0, "2026-12-20"), m("Chelsea", "Fulham", 1, 1, "2026-12-20")]
+        s = resolve(matches=matches, today=date(2026, 12, 25))
+        self.assertEqual((s["top_at_christmas"].value, s["top_at_christmas"].race[0].name), (3, "Arsenal"))
+        self.assertEqual(s["bottom_at_christmas"].value, 0)
+
+    def test_hand_entries_have_no_value(self):
+        self.assertIsNone(resolve()["pfa_player"].value)
+        self.assertEqual(resolve()["pfa_player"].race, ())
