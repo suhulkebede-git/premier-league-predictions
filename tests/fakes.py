@@ -17,8 +17,9 @@ def api_name(club: str) -> str:
 
 
 class FakeResponse:
-    def __init__(self, status_code=200, body=None, reason="OK", bad_json=False):
+    def __init__(self, status_code=200, body=None, reason="OK", bad_json=False, text=""):
         self.status_code, self._body, self.reason, self._bad = status_code, body, reason, bad_json
+        self.text = text
 
     def json(self):
         if self._bad:
