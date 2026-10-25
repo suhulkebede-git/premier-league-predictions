@@ -97,12 +97,21 @@ class TableRow:
 
 
 @dataclass(frozen=True)
+class RaceEntry:
+    rank: int  # shared on a tie (1, 1, 3)
+    name: PickValue  # canonical club or player, as people's picks are stored
+    value: int  # goals, conceded, draws, points, pace change... (unit depends on the award)
+
+
+@dataclass(frozen=True)
 class AwardStatus:
     key: str
     leaders: tuple[PickValue, ...]  # current leader(s) or settled answer; empty = unknown
     settled: bool  # True once it can no longer change
     note: str = ""  # shown on the site, e.g. "from 25 Dec" or "hand entry pending"
     from_gameweek: int | None = None  # hand entries: counts from this gameweek on
+    value: int | None = None  # the leader's number (goals, clean sheets, margin...)
+    race: tuple[RaceEntry, ...] = ()  # the top 3 (more on a tie for 3rd)
 
 
 @dataclass(frozen=True)

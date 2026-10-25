@@ -15,7 +15,15 @@ from pathlib import Path
 from typing import Callable, Iterable
 
 from .fetch import Match, Scorer
-from .models import AWARD_CATEGORIES, CATEGORY_BY_KEY, AwardStatus, PickKind, PredictionSet, TableRow
+from .models import (
+    AWARD_CATEGORIES,
+    CATEGORY_BY_KEY,
+    AwardStatus,
+    PickKind,
+    PredictionSet,
+    RaceEntry,
+    TableRow,
+)
 from .names import Aliases, NameResolver, normalise
 
 log = logging.getLogger(__name__)
@@ -30,12 +38,32 @@ class ManualAwardsError(ValueError):
     """manual_awards.json is malformed or names something unknown."""
 
 
-def _leaders(items: Iterable, metric: Callable, *, best=max) -> tuple:
+RACE_SIZE = 3
+
+
+def _race(items: Iterable, metric: Callable, name: Callable, *, best=max,
+          size: int = RACE_SIZE, shown: Callable | None = None) -> tuple[RaceEntry, ...]:
+    """The top ``size`` by ``metric`` with competition ranks (1, 1, 3); a tie for
+    the last place keeps everyone tied. ``shown`` turns the metric into the
+    whole number displayed (defaults to the metric itself)."""
     items = list(items)
-    if not items:
-        return ()
-    top = best(metric(i) for i in items)
-    return tuple(i for i in items if metric(i) == top)
+    ordered = sorted(items, key=metric, reverse=best is max)
+    out, rank, prev = [], 0, object()
+    for i, item in enumerate(ordered):
+        m = metric(item)
+        if m != prev:
+            rank, prev = i + 1, m
+        if rank > size:
+            break
+        value = shown(item) if shown else m
+        out.append(RaceEntry(rank, name(item), int(round(value))))
+    return tuple(out)
+
+
+def _status(key: str, race: tuple[RaceEntry, ...], settled: bool, **extra) -> AwardStatus:
+    leaders = tuple(e.name for e in race if e.rank == 1)
+    return AwardStatus(key, extra.pop("leaders", leaders), settled,
+                       value=extra.pop("value", race[0].value if race else None), race=race, **extra)
 
 
 def _season_over(table: list[TableRow]) -> bool:
@@ -52,41 +80,49 @@ def _table_awards(table: list[TableRow], pset: PredictionSet) -> dict[str, Award
     over = _season_over(table)
     if all(r.played == 0 for r in table):
         return {}
-    clubs = lambda rows: tuple(r.club for r in rows)  # noqa: E731
+    club = lambda r: r.club  # noqa: E731
+    promoted = [r for r in table if r.club in pset.promoted_clubs]
     out = {
-        "most_goals": clubs(_leaders(table, lambda r: r.goals_for)),
-        "fewest_goals": clubs(_leaders(table, lambda r: r.goals_for, best=min)),
-        "best_defense": clubs(_leaders(table, lambda r: r.goals_against, best=min)),
-        "worst_defense": clubs(_leaders(table, lambda r: r.goals_against)),
-        "most_draws": clubs(_leaders(table, lambda r: r.draw)),
-        "highest_promoted": clubs(_leaders(
-            [r for r in table if r.club in pset.promoted_clubs], lambda r: r.position, best=min)),
+        "most_goals": _status("most_goals", _race(table, lambda r: r.goals_for, club), over),
+        "fewest_goals": _status("fewest_goals", _race(table, lambda r: r.goals_for, club, best=min), over),
+        "best_defense": _status("best_defense", _race(table, lambda r: r.goals_against, club, best=min), over),
+        "worst_defense": _status("worst_defense", _race(table, lambda r: r.goals_against, club), over),
+        "most_draws": _status("most_draws", _race(table, lambda r: r.draw, club), over),
+        "highest_promoted": _status("highest_promoted",
+                                    _race(promoted, lambda r: r.position, club, best=min), over),
     }
+    by_points = _race(table, lambda r: r.points, club)
     by_pos = sorted(table, key=lambda r: r.position)
-    out["title_margin"] = (by_pos[0].points - by_pos[1].points,)
+    margin = by_pos[0].points - by_pos[1].points
+    out["title_margin"] = _status("title_margin", by_points, over, leaders=(margin,), value=margin)
 
     # Increase / drop-off on pace: points per game x 38 vs last season.
     paced = [r for r in table if r.club in pset.last_season_points and r.played > 0]
     delta = lambda r: Fraction(r.points * SEASON_GAMES, r.played) - pset.last_season_points[r.club]  # noqa: E731
-    out["biggest_increase"] = clubs(_leaders(paced, delta))
-    out["biggest_dropoff"] = clubs(_leaders(paced, delta, best=min))
-    return {k: AwardStatus(key=k, leaders=v, settled=over) for k, v in out.items()}
+    out["biggest_increase"] = _status("biggest_increase", _race(paced, delta, club), over)
+    out["biggest_dropoff"] = _status("biggest_dropoff", _race(paced, delta, club, best=min), over)
+    return out
 
 
 def _threshold_awards(table: list[TableRow]) -> dict[str, AwardStatus]:
+    """Over 90 / under 25, locked once mathematically decided. The race shows
+    the clubs closest to each line (most points / fewest points)."""
     max_possible = lambda r: r.points + 3 * max(SEASON_GAMES - r.played, 0)  # noqa: E731
+    club = lambda r: r.club  # noqa: E731
+    top = _race(table, lambda r: r.points, club)
+    bottom = _race(table, lambda r: r.points, club, best=min)
     if any(r.points >= OVER_POINTS for r in table):
-        over = AwardStatus("any_over_90", (True,), True, "a club has passed 90")
+        over = AwardStatus("any_over_90", (True,), True, "a club has passed 90", race=top)
     elif all(max_possible(r) < OVER_POINTS for r in table):
-        over = AwardStatus("any_over_90", (False,), True, "no club can reach 91")
+        over = AwardStatus("any_over_90", (False,), True, "no club can reach 91", race=top)
     else:
-        over = AwardStatus("any_over_90", (), False, "not decided yet")
+        over = AwardStatus("any_over_90", (), False, "not decided yet", race=top)
     if all(r.points >= UNDER_POINTS for r in table):
-        under = AwardStatus("any_under_25", (False,), True, "every club has 25+")
+        under = AwardStatus("any_under_25", (False,), True, "every club has 25+", race=bottom)
     elif any(max_possible(r) < UNDER_POINTS for r in table):
-        under = AwardStatus("any_under_25", (True,), True, "a club cannot reach 25")
+        under = AwardStatus("any_under_25", (True,), True, "a club cannot reach 25", race=bottom)
     else:
-        under = AwardStatus("any_under_25", (), False, "not decided yet")
+        under = AwardStatus("any_under_25", (), False, "not decided yet", race=bottom)
     return {"any_over_90": over, "any_under_25": under}
 
 
@@ -102,8 +138,8 @@ def _clean_sheets(matches: list[Match]) -> AwardStatus:
             counts[m.home] += 1
         if m.home_goals == 0:
             counts[m.away] += 1
-    leaders = _leaders(counts.items(), lambda kv: kv[1])
-    return AwardStatus("most_clean_sheets", tuple(club for club, _ in leaders), False)
+    race = _race(sorted(counts.items()), lambda kv: kv[1], lambda kv: kv[0])
+    return _status("most_clean_sheets", race, False)
 
 
 def christmas_table(matches: list[Match]) -> list[tuple[str, int, int, int]]:
@@ -133,11 +169,11 @@ def _christmas_awards(matches: list[Match], today: date) -> dict[str, AwardStatu
         return {k: AwardStatus(k, (), False, note) for k in ("top_at_christmas", "bottom_at_christmas")}
     rows = christmas_table(matches)
     key = lambda r: r[1:]  # noqa: E731
-    top = tuple(r[0] for r in rows if key(r) == key(rows[0]))
-    bottom = tuple(r[0] for r in rows if key(r) == key(rows[-1]))
+    name, points = (lambda r: r[0]), (lambda r: r[1])
     return {
-        "top_at_christmas": AwardStatus("top_at_christmas", top, True),
-        "bottom_at_christmas": AwardStatus("bottom_at_christmas", bottom, True),
+        "top_at_christmas": _status("top_at_christmas", _race(rows, key, name, shown=points), True),
+        "bottom_at_christmas": _status("bottom_at_christmas",
+                                       _race(rows, key, name, best=min, shown=points), True),
     }
 
 
@@ -145,8 +181,8 @@ def _scorer_awards(scorers: list[Scorer], aliases: Aliases, over: bool) -> dict[
     out = {}
     for key, metric in (("golden_boot", lambda s: s.goals), ("top_assister", lambda s: s.assists)):
         ranked = [s for s in scorers if metric(s) > 0]
-        leaders = tuple(_canonical_player(s.player, aliases) for s in _leaders(ranked, metric))
-        out[key] = AwardStatus(key, leaders, over and bool(leaders))
+        race = _race(ranked, metric, lambda s: _canonical_player(s.player, aliases))
+        out[key] = _status(key, race, over and bool(race))
     return out
 
 
