@@ -279,39 +279,133 @@ function setFocus(name) {
 }
 
 // ---------- awards, PL table, rules ----------
+// How each award's numbers read. `unit(n)` labels a race value; `lead(a)` the
+// headline under the award name when it has a leader.
+const ordinalOf = (n) => {
+  const v = n % 100;
+  if (v >= 11 && v <= 13) return `${n}th`;
+  return n + ({ 1: "st", 2: "nd", 3: "rd" }[n % 10] || "th");
+};
+const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+const signed = (n) => (n > 0 ? `+${n}` : n < 0 ? `\u2212${-n}` : "0");
+const AWARD_UNITS = {
+  golden_boot: (n) => plural(n, "goal", "goals"),
+  top_assister: (n) => plural(n, "assist", "assists"),
+  most_goals: (n) => plural(n, "goal", "goals"),
+  fewest_goals: (n) => plural(n, "goal", "goals"),
+  best_defense: (n) => `${n} conceded`,
+  worst_defense: (n) => `${n} conceded`,
+  most_draws: (n) => plural(n, "draw", "draws"),
+  most_clean_sheets: (n) => plural(n, "clean sheet", "clean sheets"),
+  highest_promoted: (n) => ordinalOf(n),
+  title_margin: (n) => `${n} pts`,
+  biggest_increase: (n) => `${signed(n)} pts on pace`,
+  biggest_dropoff: (n) => `${signed(n)} pts on pace`,
+  top_at_christmas: (n) => `${n} pts`,
+  bottom_at_christmas: (n) => `${n} pts`,
+  any_over_90: (n) => `${n} pts`,
+  any_under_25: (n) => `${n} pts`,
+};
+const RACE_TITLES = {
+  title_margin: "Top of the table", any_over_90: "Closest to 91", any_under_25: "Lowest points",
+};
+
+function pickLabel(v) {
+  if (v === true) return "Yes";
+  if (v === false) return "No";
+  return short(String(v));
+}
+
+function awardHeadline(a) {
+  const unit = AWARD_UNITS[a.key];
+  if (!a.leaders.length) return null;
+  if (a.key === "title_margin") return `${plural(a.value, "point", "points")} between 1st and 2nd`;
+  const names = a.leaders.map(pickLabel).join(", ");
+  return unit && a.value != null ? `${names}, ${unit(a.value)}` : names;
+}
+
+function thresholdLine(a) {
+  // Over 90 / under 25: how far the nearest club is from the line.
+  const near = a.race.at(0);
+  if (!near || a.leaders.length) return null;
+  if (a.key === "any_over_90") return `Highest so far: ${short(near.name)} on ${near.value}, ${91 - near.value} short of 91`;
+  if (a.key === "any_under_25") return `Lowest so far: ${short(near.name)} on ${near.value}`;
+  return null;
+}
+
 function awardsPage() {
   const entry = entryFor(state.gw);
+  const preds = Object.entries(state.data.predictions);
   const items = entry.awards.map((a) => {
-    const right = Object.entries(state.data.predictions)
-      .filter(([, p]) => p.awards[a.key] && a.leaders.includes(p.awards[a.key].value))
-      .map(([name]) => sheetName(name));
-    const leaders = a.leaders.map((v) => (v === true ? "Yes" : v === false ? "No" : short(String(v))));
-    const note = a.note ? a.note.charAt(0).toUpperCase() + a.note.slice(1) : "No data yet";
-    return el("li", {},
+    const pickers = (value) => preds
+      .filter(([, p]) => p.awards[a.key] && p.awards[a.key].value === value).map(([n]) => n);
+    const scoring = a.leaders.flatMap(pickers);
+    const unit = AWARD_UNITS[a.key] || String;
+    const named = a.race.length && !["title_margin", "any_over_90", "any_under_25"].includes(a.key);
+
+    // Left: name, status, headline number, who's scoring.
+    const main = el("div", { class: "award-main" },
       el("div", { class: "label" }, a.label,
         a.settled ? el("span", { class: "badge" }, "Final")
           : a.leaders.length && !entry.final ? el("span", { class: "badge live" }, "Live") : null),
       a.leaders.length
-        ? el("div", { class: "leaders" }, `${leaders.join(", ")}${a.key === "title_margin" ? " points" : ""}`)
-        : el("div", { class: "pending" }, note),
+        ? el("div", { class: "leaders" }, awardHeadline(a))
+        : el("div", { class: "pending" },
+          thresholdLine(a) || (a.note ? a.note.charAt(0).toUpperCase() + a.note.slice(1) : "No data yet")),
       a.leaders.length ? el("div", { class: "scoring" },
-        right.length ? `Scoring 10: ${right.join(", ")}` : "Nobody picked this") : null);
+        scoring.length ? `Scoring 10: ${scoring.map(sheetName).join(", ")}` : "Nobody picked this") : null,
+      named ? null : pickSummary(a, preds));
+
+    // Right: the race, top 3 with values; under each entry, who picked it.
+    const inRace = new Set(a.race.map((e) => e.name));
+    const elsewhere = named ? preds.filter(([, p]) => p.awards[a.key] && !inRace.has(p.awards[a.key].value)) : [];
+    const race = a.race.length ? el("div", { class: "race" },
+      el("div", { class: "race-title" }, RACE_TITLES[a.key] || "The race"),
+      el("ol", {}, a.race.map((e) => {
+        const who = named ? pickers(e.name) : [];
+        const leader = a.leaders.includes(e.name);
+        return el("li", { class: e.rank === 1 ? "first" : "" },
+          el("span", { class: "race-rank" }, e.rank),
+          el("span", { class: "race-name" }, pickLabel(e.name)),
+          el("span", { class: "race-value" }, unit(e.value)),
+          who.length ? el("span", { class: leader ? "race-pickers scoring-pickers" : "race-pickers" },
+            `${leader ? "+10 " : ""}${who.map(sheetName).join(", ")}`) : null);
+      })),
+      elsewhere.length ? el("div", { class: "race-else" }, "Elsewhere: ",
+        elsewhere.map(([n, p]) => `${sheetName(n)} (${pickLabel(p.awards[a.key].value)})`).join(", ")) : null) : null;
+
+    return el("li", { class: race ? "award has-race" : "award" }, main, race);
   });
   return [el("h2", {}, "Awards"),
     el("p", { class: "section-note" }, `10 points each. ${entryLabel(entry)}.`),
-    gwControl(), el("ul", { class: "list" }, items)];
+    gwControl(), el("ul", { class: "list awards" }, items)];
+}
+
+function pickSummary(a, preds) {
+  // Yes/no and number awards: group everyone's picks by answer.
+  const groups = new Map();
+  for (const [name, p] of preds) {
+    const pick = p.awards[a.key];
+    if (!pick) continue;
+    const k = typeof pick.value === "number" ? `${pick.value} pts` : pickLabel(pick.value);
+    if (!groups.has(k)) groups.set(k, { names: [], hit: a.leaders.includes(pick.value) });
+    groups.get(k).names.push(sheetName(name));
+  }
+  if (!groups.size) return null;
+  return el("div", { class: "pick-groups" }, [...groups].map(([k, g]) =>
+    el("span", { class: g.hit ? "pick-group hit" : "pick-group" }, el("b", {}, k), ` ${g.names.join(", ")}`)));
 }
 
 function tablePage() {
   const entry = entryFor(state.gw);
   const rows = entry.table.map((r) => {
     const gd = r.goals_for - r.goals_against;
-    return el("tr", { class: r.position <= 5 ? "top" : r.position >= 18 ? "drop" : "" },
+    return el("tr", { class: r.position <= 5 ? "zone top" : r.position >= 18 ? "zone drop" : "" },
       el("td", {}, r.position), el("td", {}, short(r.club)), el("td", {}, r.played),
-      el("td", {}, gd > 0 ? `+${gd}` : gd), el("td", {}, r.points));
+      el("td", {}, signed(gd)), el("td", {}, r.points));
   });
   return [el("h2", {}, "Premier League table"),
-    el("p", { class: "section-note" }, `${entryLabel(entry)}. Blue: top 5. Red: relegation.`),
+    el("p", { class: "section-note" }, `${entryLabel(entry)}. Blue rows: top 5. Red rows: relegation.`),
     gwControl(),
     el("table", { class: "pl" },
       el("thead", {}, el("tr", {}, ["Pos", "Club", "P", "GD", "Pts"].map((h) => el("th", {}, h)))),
