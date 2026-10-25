@@ -12,7 +12,7 @@ on:
     paths: ["site/**", "data/**", "src/**"]
 
 permissions:
-  contents: read
+  contents: write # to commit data/history.json when a gameweek's scorers are recorded
   pages: write
   id-token: write
 
@@ -36,6 +36,20 @@ jobs:
         env:
           FOOTBALL_DATA_TOKEN: ${{ secrets.FOOTBALL_DATA_TOKEN }}
         run: plpredict run --out site/standings.json
+      - name: Save scorer history
+        # Only changes when a gameweek finishes or is backfilled (~38 times a season).
+        # Pushes made with GITHUB_TOKEN don't trigger workflows, so this can't loop.
+        run: |
+          if git diff --quiet -- data/history.json; then
+            echo "No new scorer history"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/history.json
+          git commit -m "chore(history): record gameweek scorer history"
+          git pull --rebase --quiet origin main
+          git push origin HEAD:main
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

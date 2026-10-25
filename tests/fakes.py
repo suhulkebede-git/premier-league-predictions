@@ -17,9 +17,11 @@ def api_name(club: str) -> str:
 
 
 class FakeResponse:
-    def __init__(self, status_code=200, body=None, reason="OK", bad_json=False, text=""):
+    def __init__(self, status_code=200, body=None, reason="OK", bad_json=False, text="",
+                 headers=None):
         self.status_code, self._body, self.reason, self._bad = status_code, body, reason, bad_json
         self.text = text
+        self.headers = headers or {}
 
     def json(self):
         if self._bad:
@@ -56,8 +58,10 @@ def standings_body(order=CLUBS, *, played=10, points=None):
     return {"standings": [{"type": "HOME", "table": []}, {"type": "TOTAL", "table": rows}]}
 
 
-def match(home, away, hg, ag, date="2026-09-01T14:00:00Z", status="FINISHED"):
-    return {"utcDate": date, "status": status,
+def match(home, away, hg, ag, date="2026-09-01T14:00:00Z", status="FINISHED", matchday=1,
+          last_updated=None):
+    return {"utcDate": date, "status": status, "matchday": matchday,
+            "lastUpdated": last_updated,
             "homeTeam": {"name": api_name(home)}, "awayTeam": {"name": api_name(away)},
             "score": {"fullTime": {"home": hg, "away": ag}}}
 

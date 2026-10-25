@@ -3,31 +3,38 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>P302 Predictions League</title>
+  <meta name="theme-color" content="#08111F">
+  <title>Predictions League</title>
   <meta name="description" content="Live points table for our 2026/27 Premier League predictions.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <header class="band">
-    <span class="page-no" id="page-no">P302</span>
-    <span class="band-title">Predictions League</span>
-    <time class="clock" id="clock"></time>
+  <header class="masthead">
+    <div class="brand">
+      <h1>Predictions League</h1>
+      <p class="season">Premier League 2026/27</p>
+    </div>
+    <dl class="times" aria-label="Data freshness">
+      <div><dt>Table updated</dt><dd id="table-updated">–</dd></div>
+      <div><dt>Checked</dt><dd id="checked">–</dd></div>
+    </dl>
   </header>
 
-  <main id="screen" aria-live="polite">
-    <p class="dim">Searching for page 302…</p>
-  </main>
-
-  <nav class="fastext" aria-label="Pages">
-    <button type="button" class="key red" data-page="leaderboard">Leaderboard</button>
-    <button type="button" class="key green" data-page="awards">Awards</button>
-    <button type="button" class="key yellow" data-page="table">PL table</button>
-    <button type="button" class="key cyan" data-page="rules">Rules</button>
+  <nav class="tabs" aria-label="Pages">
+    <button type="button" class="tab" data-page="leaderboard">Leaderboard</button>
+    <button type="button" class="tab" data-page="awards">Awards</button>
+    <button type="button" class="tab" data-page="table">PL table</button>
+    <button type="button" class="tab" data-page="rules">Rules</button>
   </nav>
 
+  <main id="screen" aria-live="polite">
+    <p class="muted">Loading standings…</p>
+  </main>
+
+  <script src="chart.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

@@ -50,6 +50,39 @@ class ClientTests(unittest.TestCase):
                 c.get("/x")
         self.assertEqual(sleeps, [6.0, 12.0])
 
+    def test_waits_for_reset_when_allowance_used_up(self):
+        c, _, sleeps = client(
+            FakeResponse(body={"a": 1}, headers={"X-Requests-Available-Minute": "0",
+                                                  "X-RequestCounter-Reset": "42"}),
+            FakeResponse(body={"b": 2}, headers={"X-Requests-Available-Minute": "9"}))
+        with self.assertLogs("plpredict.fetch", "INFO"):
+            c.get("/a")
+        self.assertEqual(sleeps, [])
+        c.get("/b")
+        self.assertEqual(sleeps, [43.0])
+
+    def test_no_wait_while_allowance_left(self):
+        c, _, sleeps = client(
+            FakeResponse(body={}, headers={"X-Requests-Available-Minute": "5"}),
+            FakeResponse(body={}))
+        c.get("/a")
+        c.get("/b")
+        self.assertEqual(sleeps, [])
+
+    def test_429_waits_for_counter_reset(self):
+        c, _, sleeps = client(FakeResponse(429, headers={"X-RequestCounter-Reset": "17"}),
+                              FakeResponse(body={"ok": 1}))
+        with self.assertLogs("plpredict.fetch", "WARNING"):
+            self.assertEqual(c.get("/x"), {"ok": 1})
+        self.assertEqual(sleeps, [18.0])
+
+    def test_bad_rate_headers_ignored(self):
+        c, _, sleeps = client(FakeResponse(body={}, headers={"X-Requests-Available-Minute": "lots"}),
+                              FakeResponse(body={}))
+        c.get("/a")
+        c.get("/b")
+        self.assertEqual(sleeps, [])
+
     def test_auth_error_not_retried(self):
         c, session, _ = client(FakeResponse(403, reason="Forbidden"))
         with self.assertRaisesRegex(ApiError, "check the FOOTBALL_DATA_TOKEN secret"):
@@ -146,6 +179,18 @@ class FetchMatchesTests(unittest.TestCase):
         self.assertFalse(matches[1].finished)
         self.assertEqual(matches[1].utc_date, datetime(2026, 12, 26, 15, tzinfo=timezone.utc))
 
+    def test_matchday_and_last_updated(self):
+        body = {"matches": [match("Arsenal", "Hull City", 1, 0, matchday=9,
+                                  last_updated="2026-10-25T16:02:11Z"),
+                            {**match("Leeds United", "Fulham", 0, 0), "matchday": None,
+                             "lastUpdated": None}]}
+        c, _, _ = client(FakeResponse(body=body))
+        first, second = fetch_matches(c, resolver())
+        self.assertEqual(first.matchday, 9)
+        self.assertEqual(first.last_updated, datetime(2026, 10, 25, 16, 2, 11, tzinfo=timezone.utc))
+        self.assertIsNone(second.matchday)
+        self.assertIsNone(second.last_updated)
+
     def test_bad_date(self):
         bad = match("Arsenal", "Hull City", 1, 0, date="yesterday")
         c, _, _ = client(FakeResponse(body={"matches": [bad]}))
@@ -171,6 +216,16 @@ class FetchScorersTests(unittest.TestCase):
         c, _, _ = client(FakeResponse(body={"scorers": [{"goals": 3}]}))
         with self.assertRaisesRegex(ApiError, "scorers response shape"):
             fetch_scorers(c)
+
+    def test_matchday_filter(self):
+        c, session, _ = client(FakeResponse(body={"scorers": []}))
+        self.assertEqual(fetch_scorers(c, matchday=4), [])
+        self.assertEqual(session.calls[0][1], {"limit": 200, "matchday": 4})
+
+    def test_matchday_must_be_positive(self):
+        c, _, _ = client()
+        with self.assertRaises(ValueError):
+            fetch_scorers(c, matchday=0)
 
     def test_limit_must_be_positive(self):
         c, _, _ = client()

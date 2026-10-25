@@ -19,9 +19,23 @@ from datetime import date, datetime, timezone
 from pathlib import Path
 
 from .awards import load_manual_awards, resolve_awards
-from .fetch import ApiError, Client, fetch_matches, fetch_scorers, fetch_table
+from .fetch import ApiError, Client, Match, fetch_matches, fetch_scorers, fetch_table
+from .history import (
+    HistoryError,
+    assign_gameweeks,
+    backfill_scorers,
+    final_gameweeks,
+    gameweek_end,
+    live_gameweek,
+    load_adjustments,
+    load_history,
+    record_snapshot,
+    save_history,
+    scorers_through,
+    table_after,
+)
 from .logging_config import configure_logging
-from .models import AWARD_CATEGORIES, AwardStatus, PersonScore, PredictionSet, TableRow
+from .models import AWARD_CATEGORIES, PredictionSet
 from .names import NameResolver, UnknownNameError, load_aliases
 from .predictions import (
     InvalidPredictionError,
@@ -37,22 +51,73 @@ log = logging.getLogger(__name__)
 TOKEN_ENV = "FOOTBALL_DATA_TOKEN"
 
 
-def build_standings(
-    pset: PredictionSet,
-    table: list[TableRow],
-    awards: dict[str, AwardStatus],
-    scores: list[PersonScore],
-    now: datetime,
-) -> dict:
-    """Everything the static site needs, as one JSON-ready dict."""
+def _entry(gameweek: int | None, table, awards, scores) -> dict:
     labels = {c.key: c.label for c in AWARD_CATEGORIES}
     return {
-        "updated_at": now.isoformat(timespec="seconds"),
-        "games_played": max((r.played for r in table), default=0),
-        "season_over": all(r.played >= 38 for r in table),
+        "gameweek": gameweek,
         "table": [asdict(r) for r in sorted(table, key=lambda r: r.position)],
         "awards": [{**asdict(awards[c.key]), "label": labels[c.key]} for c in AWARD_CATEGORIES],
         "scores": [asdict(s) for s in scores],
+    }
+
+
+def table_updated(matches: list[Match]) -> tuple[str | None, str]:
+    """When the results last changed: the API's lastUpdated on finished matches,
+    else the latest finished kick-off. Returns (ISO time or None, source)."""
+    done = [m for m in matches if m.finished]
+    stamps = [m.last_updated for m in done if m.last_updated is not None]
+    if stamps:
+        return max(stamps).isoformat(timespec="seconds"), "api_last_updated"
+    if done:
+        return max(m.utc_date for m in done).isoformat(timespec="seconds"), "last_result_kickoff"
+    return None, "none"
+
+
+def load_people(path: Path) -> dict:
+    """data/people.json: sheet name -> {"name", "initials"}; missing file = none."""
+    try:
+        data = json.loads(Path(path).read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        log.warning("No people file at %s; the site will derive initials from names", path)
+        return {}
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"{path} is not valid JSON: {exc}") from exc
+    people = data.get("people") if isinstance(data, dict) else None
+    if not isinstance(people, dict) or not all(
+            isinstance(v, dict) and isinstance(v.get("name"), str) and isinstance(v.get("initials"), str)
+            for v in people.values()):
+        raise ValueError(f"{path} must be {{\"people\": {{NAME: {{\"name\", \"initials\"}}}}}}")
+    return people
+
+
+def build_standings(
+    pset: PredictionSet,
+    live: dict,
+    gameweeks: list[dict],
+    now: datetime,
+    table_updated_at: str | None,
+    table_updated_source: str,
+    people: dict,
+) -> dict:
+    """Everything the static site needs, as one JSON-ready dict.
+
+    ``live`` is the current view (API table); ``gameweeks`` the finished ones.
+    The top-level table/awards/scores mirror ``live`` so v1 readers keep working.
+    """
+    table = live["table"]
+    return {
+        "updated_at": now.isoformat(timespec="seconds"),
+        "checked_at": now.isoformat(timespec="seconds"),
+        "table_updated_at": table_updated_at,
+        "table_updated_source": table_updated_source,
+        "games_played": max((r["played"] for r in table), default=0),
+        "season_over": bool(table) and all(r["played"] >= 38 for r in table),
+        "live": live,
+        "gameweeks": gameweeks,
+        "table": live["table"],
+        "awards": live["awards"],
+        "scores": live["scores"],
+        "people": {p.person: people.get(p.person, {}) for p in pset.predictions},
         "predictions": {
             p.person: {"order": list(p.order),
                        "awards": {k: asdict(v) for k, v in p.awards.items()}}
@@ -68,7 +133,8 @@ def write_json_atomic(data: dict, path: Path) -> None:
     fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=path.name, suffix=".tmp")
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            json.dump(data, fh, indent=2, ensure_ascii=False)
+            # Compact: the file grows with every gameweek and is only read by the site.
+            json.dump(data, fh, separators=(",", ":"), ensure_ascii=False)
             fh.write("\n")
         os.replace(tmp, path)
     except OSError:
@@ -85,24 +151,52 @@ def run(
     today: date | None = None,
     now: datetime | None = None,
 ) -> dict:
-    """One scheduled run. Leaves the previous output untouched on any failure."""
+    """One scheduled run. Leaves the previous output untouched on any failure.
+
+    Also updates data/history.json (scorer snapshots) when there is something
+    new; the workflow commits that file.
+    """
     now = now or datetime.now(timezone.utc)
     today = today or now.date()
     aliases = load_aliases(data_dir / "aliases.json")
     pset = load_predictions(data_dir / "predictions.json")
     names = NameResolver(aliases, list(pset.season_clubs))
     manual = load_manual_awards(data_dir / "manual_awards.json", names)
+    adjustments = load_adjustments(data_dir / "adjustments.json", names)
+    history = load_history(data_dir / "history.json")
+    people = load_people(data_dir / "people.json")
 
     table = fetch_table(client, names)
     matches = fetch_matches(client, names)
     scorers = fetch_scorers(client)
 
+    assigned = assign_gameweeks(matches)
+    final = final_gameweeks(assigned)
+    current = live_gameweek(assigned, final)
+    record_snapshot(history, scorers, final, current)
+    backfill_scorers(client, history, assigned, final,
+                     fetch=lambda c, gw: fetch_scorers(c, matchday=gw))
+
+    gameweeks = []
+    for gw in final:
+        gw_table = table_after(assigned, gw, pset.season_clubs, adjustments)
+        gw_matches = [m for g, m in assigned if g <= gw]
+        gw_awards = resolve_awards(gw_table, gw_matches, scorers_through(history, gw), pset,
+                                   manual, aliases, gameweek_end(assigned, gw).date(), gameweek=gw)
+        gw_scores = score_all(pset.predictions, gw_table, pset.season_clubs, gw_awards)
+        gameweeks.append(_entry(gw, gw_table, gw_awards, gw_scores))
+
     awards = resolve_awards(table, matches, scorers, pset, manual, aliases, today)
     scores = score_all(pset.predictions, table, pset.season_clubs, awards)
-    standings = build_standings(pset, table, awards, scores, now)
+    live = {**_entry(current if current else (final[-1] if final else None), table, awards, scores),
+            "in_progress": current is not None}
+
+    updated_at, source = table_updated(matches)
+    standings = build_standings(pset, live, gameweeks, now, updated_at, source, people)
     write_json_atomic(standings, out_path)
-    log.info("Wrote %s: leader %s (%d pts) after %d games",
-             out_path, scores[0].person, scores[0].total, standings["games_played"])
+    save_history(history, data_dir / "history.json")
+    log.info("Wrote %s: %d finished gameweek(s), live gameweek %s, leader %s (%d pts)",
+             out_path, len(final), live["gameweek"], scores[0].person, scores[0].total)
     return standings
 
 
@@ -189,7 +283,7 @@ def cli(argv: list[str] | None = None) -> int:
         run(data_dir=args.data_dir, out_path=args.out, client=Client(token))
         return 0
     except (UnknownNameError, InvalidPredictionError, InvalidTableError, ApiError,
-            FileNotFoundError, ValueError) as exc:
+            HistoryError, FileNotFoundError, ValueError) as exc:
         log.error("%s failed; previous output left unchanged:\n%s", args.command, exc)
         github_annotation(f"plpredict {args.command} failed", f"{type(exc).__name__}: {exc}")
         return 1

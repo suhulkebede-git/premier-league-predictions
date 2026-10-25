@@ -1,0 +1,4 @@
+{
+  "_comment": "Points deductions (negative) or additions. Applied to the table from 'from_gameweek' onward; the live table already includes them via the API.",
+  "adjustments": []
+}

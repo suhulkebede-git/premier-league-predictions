@@ -235,3 +235,40 @@ class ManualAwardsFileTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class GameweekAwardTests(unittest.TestCase):
+    def test_scorers_not_recorded(self):
+        s = resolve_awards(table(), [], None, PSET, {}, test_aliases(), date(2026, 10, 25), gameweek=3)
+        for key in ("golden_boot", "top_assister"):
+            self.assertEqual((s[key].leaders, s[key].note), ((), "not recorded for this gameweek"))
+
+    def test_hand_entry_counts_from_its_gameweek(self):
+        from plpredict.models import AwardStatus
+        manual = {"first_sacked_manager": AwardStatus("first_sacked_manager", ("Enzo Maresca",),
+                                                      True, "", from_gameweek=9)}
+        args = (table(), [], [], PSET, manual, test_aliases(), date(2026, 10, 25))
+        self.assertEqual(resolve_awards(*args, gameweek=8)["first_sacked_manager"].leaders, ())
+        self.assertEqual(resolve_awards(*args, gameweek=9)["first_sacked_manager"].leaders,
+                         ("Enzo Maresca",))
+        self.assertEqual(resolve_awards(*args)["first_sacked_manager"].leaders, ("Enzo Maresca",))
+
+
+class ManualFromGameweekTests(unittest.TestCase):
+    def setUp(self):
+        self.dir = tempfile.TemporaryDirectory()
+        self.path = Path(self.dir.name) / "manual.json"
+        self.names = NameResolver(test_aliases(), CLUBS)
+
+    def tearDown(self):
+        self.dir.cleanup()
+
+    def test_reads_from_gameweek(self):
+        self.path.write_text(json.dumps({"pfa_player": {"leaders": ["Bruno F"], "from_gameweek": 38}}))
+        self.assertEqual(load_manual_awards(self.path, self.names)["pfa_player"].from_gameweek, 38)
+
+    def test_rejects_bad_from_gameweek(self):
+        for bad in (0, 39, "9", True):
+            self.path.write_text(json.dumps({"pfa_player": {"leaders": [], "from_gameweek": bad}}))
+            with self.assertRaisesRegex(ManualAwardsError, "from_gameweek"):
+                load_manual_awards(self.path, self.names)

@@ -102,6 +102,7 @@ class AwardStatus:
     leaders: tuple[PickValue, ...]  # current leader(s) or settled answer; empty = unknown
     settled: bool  # True once it can no longer change
     note: str = ""  # shown on the site, e.g. "from 25 Dec" or "hand entry pending"
+    from_gameweek: int | None = None  # hand entries: counts from this gameweek on
 
 
 @dataclass(frozen=True)

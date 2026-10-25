@@ -191,8 +191,12 @@ def load_manual_awards(path: Path, names: NameResolver) -> dict[str, AwardStatus
             names.raise_if_unmapped()
         except ValueError as exc:
             raise ManualAwardsError(f"{path}: {exc}") from exc
+        from_gw = entry.get("from_gameweek")
+        if from_gw is not None and (isinstance(from_gw, bool) or not isinstance(from_gw, int)
+                                    or not 1 <= from_gw <= 38):
+            raise ManualAwardsError(f"{key!r}: from_gameweek must be 1-38 or null")
         out[key] = AwardStatus(key, tuple(leaders), bool(entry.get("settled", False)),
-                               "" if leaders else "hand entry pending")
+                               "" if leaders else "hand entry pending", from_gw)
     log.info("Loaded %d hand-entered awards (%d known)", len(out),
              sum(bool(s.leaders) for s in out.values()))
     return out
@@ -201,13 +205,20 @@ def load_manual_awards(path: Path, names: NameResolver) -> dict[str, AwardStatus
 def resolve_awards(
     table: list[TableRow],
     matches: list[Match],
-    scorers: list[Scorer],
+    scorers: list[Scorer] | None,
     pset: PredictionSet,
     manual: dict[str, AwardStatus],
     aliases: Aliases,
     today: date,
+    gameweek: int | None = None,
 ) -> dict[str, AwardStatus]:
-    """Current status of all 20 award categories."""
+    """Status of all 20 award categories, live or as of a past gameweek.
+
+    For a past gameweek, pass that gameweek's table and matches, ``today`` =
+    its last kick-off date, and ``gameweek``: hand entries recorded from a
+    later gameweek are left out, and ``scorers=None`` marks Golden Boot and
+    Top Assister as not recorded.
+    """
     if not table:
         raise ValueError("Cannot resolve awards without a league table")
     over = _season_over(table)
@@ -217,8 +228,13 @@ def resolve_awards(
     statuses["most_clean_sheets"] = AwardStatus(
         **{**_clean_sheets(matches).__dict__, "settled": over})
     statuses.update(_christmas_awards(matches, today))
-    statuses.update(_scorer_awards(scorers, aliases, over))
-    statuses.update(manual)
+    if scorers is None:
+        for key in ("golden_boot", "top_assister"):
+            statuses[key] = AwardStatus(key, (), False, "not recorded for this gameweek")
+    else:
+        statuses.update(_scorer_awards(scorers, aliases, over))
+    statuses.update({k: v for k, v in manual.items()
+                     if gameweek is None or v.from_gameweek is None or v.from_gameweek <= gameweek})
     for category in AWARD_CATEGORIES:
         statuses.setdefault(category.key, AwardStatus(
             category.key, (), False,

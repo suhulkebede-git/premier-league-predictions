@@ -1,0 +1,15 @@
+{
+  "_comment": "Full names and initials for the site, keyed by the name in the predictions sheet.",
+  "people": {
+    "SUHUL": {"name": "Suhul K", "initials": "SK"},
+    "IYIN": {"name": "Iyin O", "initials": "IO"},
+    "OREVA": {"name": "Oreva O", "initials": "OO"},
+    "UGWE": {"name": "Michael Ugwe", "initials": "MU"},
+    "LUKE": {"name": "Luke O", "initials": "LO"},
+    "PEDRO": {"name": "Pedro A", "initials": "PA"},
+    "JACK": {"name": "Jack F", "initials": "JF"},
+    "ED": {"name": "Ed A", "initials": "EA"},
+    "TINASHE": {"name": "Tinashe M", "initials": "TM"},
+    "ABE": {"name": "Adam K", "initials": "AK"}
+  }
+}
