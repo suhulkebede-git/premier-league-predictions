@@ -1,0 +1,174 @@
+:root {
+  --black: #000000;
+  --white: #ffffff;
+  --yellow: #ffff00;
+  --cyan: #00ffff;
+  --green: #00ff00;
+  --red: #ff0000;
+  --blue: #0000ff;
+  --magenta: #ff00ff;
+  --dim: #b3b3b3;
+  --row: 1.9rem;
+  --page: 42rem;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+
+html { background: var(--black); }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--black);
+  color: var(--white);
+  font-family: "Pixelify Sans", "Courier New", monospace;
+  font-size: 1.125rem;
+  line-height: 1.45;
+  padding-bottom: 5rem; /* room for the fixed Fastext bar on phones */
+}
+
+button { font: inherit; }
+
+:focus-visible { outline: 3px solid var(--cyan); outline-offset: 2px; }
+
+/* Header band: page number, title, clock (like the top line of a teletext page) */
+.band {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 1rem;
+  align-items: baseline;
+  max-width: var(--page);
+  margin: 0 auto;
+  padding: 0.5rem 1rem;
+  background: var(--blue);
+  color: var(--white);
+}
+.page-no { color: var(--white); font-weight: 600; }
+.band-title { color: var(--yellow); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.clock { color: var(--white); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+main {
+  max-width: var(--page);
+  margin: 0 auto;
+  padding: 1rem 1rem 2rem;
+}
+
+/* Double-height headings, drawn the teletext way */
+h1, h2 {
+  font-weight: 600;
+  color: var(--yellow);
+  margin: 0.5rem 0 1.4rem;
+  font-size: 1.35rem;
+  line-height: 1;
+  transform: scaleY(2);
+  transform-origin: top left;
+  padding-bottom: 0.7rem;
+  white-space: nowrap; /* the 2x stretch doesn't reflow, so headings stay on one line */
+}
+h2 { color: var(--cyan); font-size: 1.15rem; margin-top: 2rem; }
+
+p { margin: 0 0 1rem; max-width: 38rem; }
+.dim { color: var(--dim); }
+.yellow { color: var(--yellow); }
+.cyan { color: var(--cyan); }
+.green { color: var(--green); }
+.red { color: var(--red); }
+.magenta { color: var(--magenta); }
+
+/* Rows: every listing is a grid of text lines, no cards */
+.rows { list-style: none; margin: 0; padding: 0; }
+.row {
+  display: grid;
+  align-items: baseline;
+  column-gap: 0.75rem;
+  min-height: var(--row);
+}
+.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+.leader-row { grid-template-columns: 2.2rem minmax(0, 1fr) 3.5rem 13ch; }
+.leader-row > span:last-child { white-space: nowrap; }
+.leader-row button {
+  all: unset;
+  cursor: pointer;
+  color: var(--white);
+}
+.leader-row button:hover, .leader-row button[aria-expanded="true"] { color: var(--yellow); }
+.leader-row button:focus-visible { outline: 3px solid var(--cyan); outline-offset: 2px; }
+.leader-row .pts { color: var(--green); }
+.head { color: var(--cyan); }
+
+.tie-note { grid-column: 2 / -1; color: var(--magenta); font-size: 0.95rem; }
+
+/* A person's page, opened under their row */
+.person {
+  grid-column: 1 / -1;
+  margin: 0.5rem 0 1.5rem;
+  padding: 0.75rem 0 0.75rem 1rem;
+  border-left: 4px solid var(--yellow);
+}
+.person h2 { margin-top: 0.5rem; }
+.points-row { grid-template-columns: 1fr 5rem; }
+.order-row { grid-template-columns: 2rem 1fr 2.5rem 3rem; }
+.award-row { grid-template-columns: 1.4rem 1fr; }
+.award-row .pick { color: var(--dim); }
+
+.table-row { grid-template-columns: 2rem 1fr 2rem 2.6rem 2.6rem; }
+.awards-row { grid-template-columns: 1fr; padding: 0.35rem 0; }
+.awards-row .who { color: var(--dim); font-size: 0.95rem; }
+
+/* Fastext: the four coloured keys */
+.fastext {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0;
+  max-width: var(--page);
+  margin: 0 auto;
+  background: var(--black);
+  padding: 0.5rem 0.5rem calc(0.5rem + env(safe-area-inset-bottom));
+}
+.key {
+  background: var(--black);
+  border: 0;
+  padding: 0.6rem 0.25rem;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 1rem;
+}
+.key.red { color: var(--red); }
+.key.green { color: var(--green); }
+.key.yellow { color: var(--yellow); }
+.key.cyan { color: var(--cyan); }
+.key[aria-current="page"] { background: currentColor; }
+.key[aria-current="page"]::before { content: none; }
+.key.red[aria-current="page"],
+.key.green[aria-current="page"],
+.key.yellow[aria-current="page"],
+.key.cyan[aria-current="page"] { color: var(--black); }
+.key.red[aria-current="page"] { background: var(--red); }
+.key.green[aria-current="page"] { background: var(--green); }
+.key.yellow[aria-current="page"] { background: var(--yellow); }
+.key.cyan[aria-current="page"] { background: var(--cyan); }
+
+/* The one motion moment: a page draws line by line, like a teletext refresh */
+@media (prefers-reduced-motion: no-preference) {
+  .draw > * { animation: line-in 0.01s steps(1) both; animation-delay: calc(var(--i, 0) * 28ms); }
+  @keyframes line-in { from { visibility: hidden; } to { visibility: visible; } }
+}
+
+@media (min-width: 48rem) {
+  body { padding-bottom: 0; }
+  .fastext { position: static; padding: 1rem; }
+}
+
+@media (max-width: 26rem) {
+  body { font-size: 1rem; }
+  .band { gap: 0.5rem; font-size: 0.95rem; }
+}
+
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
