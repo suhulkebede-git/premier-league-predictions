@@ -7,7 +7,9 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
+import re
 import logging
 import os
 import sys
@@ -111,7 +113,34 @@ def import_sheet(xlsx: Path, data_dir: Path) -> PredictionSet:
     return pset
 
 
-def github_annotation(title: str, message: str) -> None:
+TOKEN_PATTERN = re.compile(r"[0-9a-f]{32}")
+
+
+def describe_token(token: str) -> tuple[bool, str]:
+    """Check a token's shape and describe it without revealing it.
+
+    Returns (looks_valid, description). The description gives the length,
+    a SHA-256 fingerprint (first 8 hex chars, useless for authenticating)
+    and any obvious paste mistakes, so a bad secret can be diagnosed from
+    the logs.
+    """
+    fingerprint = hashlib.sha256(token.encode("utf-8")).hexdigest()[:8]
+    problems = []
+    if any(q in token for q in "\"'\u201c\u201d\u2018\u2019"):
+        problems.append("contains quote marks")
+    if any(ch.isspace() for ch in token):
+        problems.append("contains spaces or line breaks")
+    if ":" in token:
+        problems.append("contains ':' (paste only the token, not 'X-Auth-Token:')")
+    if not problems and not TOKEN_PATTERN.fullmatch(token):
+        problems.append("is not 32 lowercase hex characters")
+    desc = f"{len(token)} characters, sha256 fingerprint {fingerprint}"
+    if problems:
+        desc += "; " + "; ".join(problems)
+    return (not problems, desc)
+
+
+def github_annotation(title: str, message: str, level: str = "error") -> None:
     """Surface an error on the GitHub Actions run summary (no-op elsewhere).
 
     Uses the ::error workflow command, which must go to stdout; newlines are
@@ -120,7 +149,7 @@ def github_annotation(title: str, message: str) -> None:
     if os.environ.get("GITHUB_ACTIONS") != "true":
         return
     encoded = message.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
-    sys.stdout.write(f"::error title={title}::{encoded}\n")
+    sys.stdout.write(f"::{level} title={title}::{encoded}\n")
     sys.stdout.flush()
 
 
@@ -145,10 +174,18 @@ def cli(argv: list[str] | None = None) -> int:
         if args.command == "import-sheet":
             import_sheet(args.xlsx, args.data_dir)
             return 0
-        token = os.environ.get(TOKEN_ENV, "")
-        if not token.strip():
+        raw = os.environ.get(TOKEN_ENV, "")
+        if not raw.strip():
             log.error("Set %s to your football-data.org API token", TOKEN_ENV)
             return 2
+        token = raw.strip()
+        ok, desc = describe_token(token)
+        if not ok:
+            log.error("%s looks wrong: %s", TOKEN_ENV, desc)
+            github_annotation(f"{TOKEN_ENV} looks wrong", desc)
+            return 2
+        log.info("Using %s (%s)", TOKEN_ENV, desc)
+        github_annotation(TOKEN_ENV, desc, level="notice")
         run(data_dir=args.data_dir, out_path=args.out, client=Client(token))
         return 0
     except (UnknownNameError, InvalidPredictionError, InvalidTableError, ApiError,

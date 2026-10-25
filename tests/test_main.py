@@ -8,7 +8,7 @@ from pathlib import Path
 from unittest import mock
 
 from plpredict.fetch import ApiError, Client
-from plpredict.main import cli, run, write_json_atomic
+from plpredict.main import cli, describe_token, run, write_json_atomic
 from tests.fakes import FakeResponse, FakeSession, match, standings_body
 from tests.helpers import CLUBS, write_sheet
 
@@ -80,6 +80,41 @@ class WriteJsonAtomicTests(unittest.TestCase):
             self.assertEqual([p.name for p in Path(d).iterdir()], ["out.json"])
 
 
+class DescribeTokenTests(unittest.TestCase):
+    GOOD = "0123456789abcdef0123456789abcdef"
+
+    def test_valid_token(self):
+        ok, desc = describe_token(self.GOOD)
+        self.assertTrue(ok)
+        self.assertRegex(desc, r"^32 characters, sha256 fingerprint [0-9a-f]{8}$")
+        self.assertNotIn(self.GOOD[:6], desc)
+
+    def test_fingerprint_is_stable_and_distinct(self):
+        self.assertEqual(describe_token(self.GOOD)[1], describe_token(self.GOOD)[1])
+        self.assertNotEqual(describe_token(self.GOOD)[1], describe_token("f" * 32)[1])
+
+    def test_quotes(self):
+        for token in (f'"{self.GOOD}"', f"\u201c{self.GOOD}\u201d"):
+            ok, desc = describe_token(token)
+            self.assertFalse(ok)
+            self.assertIn("quote marks", desc)
+
+    def test_header_prefix(self):
+        ok, desc = describe_token("X-Auth-Token:" + self.GOOD)
+        self.assertFalse(ok)
+        self.assertIn("not 'X-Auth-Token:'", desc)
+
+    def test_inner_whitespace(self):
+        ok, desc = describe_token(self.GOOD[:16] + "\n" + self.GOOD[16:])
+        self.assertIn("spaces or line breaks", desc)
+
+    def test_wrong_shape(self):
+        ok, desc = describe_token("abc123")
+        self.assertFalse(ok)
+        self.assertIn("6 characters", desc)
+        self.assertIn("not 32 lowercase hex", desc)
+
+
 class CliTests(unittest.TestCase):
     def setUp(self):
         self.dir = tempfile.TemporaryDirectory()
@@ -99,26 +134,54 @@ class CliTests(unittest.TestCase):
             with self.assertLogs("plpredict.main", "ERROR"):
                 self.assertEqual(cli(["--data-dir", str(self.data), "run"]), 2)
 
+    def test_malformed_token_exits_2_without_calling_api(self):
+        with mock.patch.dict("os.environ", {"FOOTBALL_DATA_TOKEN": '"abc"'}), \
+                mock.patch("plpredict.main.run") as run_mock:
+            with self.assertLogs("plpredict.main", "ERROR") as logs:
+                self.assertEqual(cli(["--data-dir", str(self.data), "run"]), 2)
+        run_mock.assert_not_called()
+        self.assertIn("quote marks", logs.output[0])
+
+    def test_logs_token_fingerprint(self):
+        token = "0123456789abcdef0123456789abcdef"
+        with mock.patch.dict("os.environ", {"FOOTBALL_DATA_TOKEN": f"  {token}\n"}), \
+                mock.patch("plpredict.main.run"):
+            with self.assertLogs("plpredict.main", "INFO") as logs:
+                self.assertEqual(cli(["--data-dir", str(self.data), "run"]), 0)
+        self.assertTrue(any("sha256 fingerprint" in line for line in logs.output))
+        self.assertFalse(any(token in line for line in logs.output))
+
+    def test_fingerprint_notice_in_actions(self):
+        token = "0123456789abcdef0123456789abcdef"
+        env = {"FOOTBALL_DATA_TOKEN": token, "GITHUB_ACTIONS": "true"}
+        with mock.patch.dict("os.environ", env), mock.patch("plpredict.main.run"), \
+                mock.patch("sys.stdout") as out:
+            with self.assertLogs("plpredict.main", "INFO"):
+                cli(["--data-dir", str(self.data), "run"])
+        written = "".join(c.args[0] for c in out.write.call_args_list)
+        self.assertTrue(written.startswith("::notice title=FOOTBALL_DATA_TOKEN::32 characters"))
+        self.assertNotIn(token, written)
+
     def test_api_error_exits_1(self):
-        with mock.patch.dict("os.environ", {"FOOTBALL_DATA_TOKEN": "t"}), \
+        with mock.patch.dict("os.environ", {"FOOTBALL_DATA_TOKEN": "0" * 32}), \
                 mock.patch("plpredict.main.run", side_effect=ApiError("down")):
             with self.assertLogs("plpredict.main", "ERROR") as logs:
                 self.assertEqual(cli(["--data-dir", str(self.data), "run"]), 1)
         self.assertIn("previous output left unchanged", logs.output[0])
 
     def test_error_becomes_github_annotation_in_actions(self):
-        env = {"FOOTBALL_DATA_TOKEN": "t", "GITHUB_ACTIONS": "true"}
+        env = {"FOOTBALL_DATA_TOKEN": "0" * 32, "GITHUB_ACTIONS": "true"}
         with mock.patch.dict("os.environ", env), \
                 mock.patch("plpredict.main.run", side_effect=ApiError("HTTP 403\nForbidden 100%")), \
                 mock.patch("sys.stdout") as out:
             with self.assertLogs("plpredict.main", "ERROR"):
                 self.assertEqual(cli(["--data-dir", str(self.data), "run"]), 1)
         written = "".join(c.args[0] for c in out.write.call_args_list)
-        self.assertEqual(written, "::error title=plpredict run failed::"
-                                  "ApiError: HTTP 403%0AForbidden 100%25\n")
+        self.assertIn("::error title=plpredict run failed::"
+                      "ApiError: HTTP 403%0AForbidden 100%25\n", written)
 
     def test_no_annotation_outside_actions(self):
-        with mock.patch.dict("os.environ", {"FOOTBALL_DATA_TOKEN": "t", "GITHUB_ACTIONS": ""}), \
+        with mock.patch.dict("os.environ", {"FOOTBALL_DATA_TOKEN": "0" * 32, "GITHUB_ACTIONS": ""}), \
                 mock.patch("plpredict.main.run", side_effect=ApiError("down")), \
                 mock.patch("sys.stdout") as out:
             with self.assertLogs("plpredict.main", "ERROR"):
