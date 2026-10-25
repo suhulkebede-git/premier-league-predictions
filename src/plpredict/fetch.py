@@ -1,7 +1,9 @@
 """football-data.org v4 client: standings, matches and scorers for the PL.
 
-Free tier: 10 requests/minute, token in the X-Auth-Token header. One run
-makes three requests, so the only throttling needed is backoff on 429s.
+Free tier: 10 requests/minute, token in the X-Auth-Token header. The
+client reads the API's rate-limit headers (X-Requests-Available-Minute,
+X-RequestCounter-Reset) and waits for the counter to reset when the
+allowance runs out, so a run with history backfill stays under the limit.
 """
 
 from __future__ import annotations
@@ -38,6 +40,8 @@ class Match:
     away: str
     home_goals: int | None
     away_goals: int | None
+    matchday: int | None = None  # the API's scheduled gameweek
+    last_updated: datetime | None = None  # when the API last changed this match
 
     @property
     def finished(self) -> bool:
@@ -68,6 +72,25 @@ class Client:
         self._retries = retries
         self._backoff_s = backoff_s
         self._sleep = sleep
+        self._wait_before_next = 0.0
+
+    @staticmethod
+    def _header_int(resp, name: str) -> int | None:
+        value = (getattr(resp, "headers", None) or {}).get(name)
+        try:
+            return int(value) if value is not None else None
+        except (TypeError, ValueError):
+            log.debug("Ignoring non-numeric %s header %r", name, value)
+            return None
+
+    def _note_rate_limit(self, resp) -> None:
+        """If this response used up the minute's allowance, wait before the next call."""
+        remaining = self._header_int(resp, "X-Requests-Available-Minute")
+        reset = self._header_int(resp, "X-RequestCounter-Reset")
+        if remaining is not None and remaining <= 0:
+            self._wait_before_next = float(reset if reset is not None else 60) + 1
+            log.info("Rate limit allowance used up; next request waits %.0fs",
+                     self._wait_before_next)
 
     def get(self, path: str, params: dict | None = None) -> dict:
         """GET a JSON resource, retrying on 429/5xx and network errors.
@@ -77,12 +100,16 @@ class Client:
                 or a body that is not a JSON object.
         """
         url = f"{BASE_URL}{path}"
+        if self._wait_before_next:
+            self._sleep(self._wait_before_next)
+            self._wait_before_next = 0.0
         for attempt in range(1, self._retries + 2):
             try:
                 resp = self._session.get(url, params=params, timeout=TIMEOUT_S)
             except (requests.ConnectionError, requests.Timeout) as exc:
                 problem = f"network error: {exc}"
             else:
+                self._note_rate_limit(resp)
                 if resp.status_code == 200:
                     try:
                         body = resp.json()
@@ -103,7 +130,9 @@ class Client:
                 problem = f"HTTP {resp.status_code}"
             if attempt > self._retries:
                 raise ApiError(f"{path}: giving up after {attempt} attempts ({problem})")
-            wait = self._backoff_s * attempt
+            reset = self._header_int(resp, "X-RequestCounter-Reset") if problem == "HTTP 429" else None
+            wait = float(reset) + 1 if reset is not None else self._backoff_s * attempt
+            self._wait_before_next = 0.0
             log.warning("GET %s failed (%s); retry %d in %.0fs", path, problem, attempt, wait)
             self._sleep(wait)
         raise AssertionError("unreachable")  # pragma: no cover
@@ -179,6 +208,9 @@ def fetch_matches(client: Client, names: NameResolver) -> list[Match]:
                 away=api_club(m["awayTeam"]["name"], names),
                 home_goals=full.get("home"),
                 away_goals=full.get("away"),
+                matchday=m.get("matchday"),
+                last_updated=(datetime.fromisoformat(m["lastUpdated"].replace("Z", "+00:00"))
+                              if m.get("lastUpdated") else None),
             ))
     except (KeyError, TypeError, ValueError) as exc:
         raise ApiError(f"Unexpected matches response shape: {exc!r}") from exc
@@ -187,12 +219,16 @@ def fetch_matches(client: Client, names: NameResolver) -> list[Match]:
     return matches
 
 
-def fetch_scorers(client: Client, limit: int = 200) -> list[Scorer]:
+def fetch_scorers(client: Client, limit: int = 200, matchday: int | None = None) -> list[Scorer]:
     """Top scorers with assists. A high limit keeps assist leaders who score
-    few goals in the list (the API ranks by goals)."""
+    few goals in the list (the API ranks by goals). ``matchday`` asks for the
+    list as of that gameweek (used to backfill history)."""
     if limit < 1:
         raise ValueError("limit must be positive")
-    body = client.get(f"/competitions/{COMPETITION}/scorers", {"limit": limit})
+    if matchday is not None and matchday < 1:
+        raise ValueError("matchday must be positive")
+    params = {"limit": limit} if matchday is None else {"limit": limit, "matchday": matchday}
+    body = client.get(f"/competitions/{COMPETITION}/scorers", params)
     try:
         scorers = [
             Scorer(
@@ -204,5 +240,5 @@ def fetch_scorers(client: Client, limit: int = 200) -> list[Scorer]:
         ]
     except (KeyError, TypeError) as exc:
         raise ApiError(f"Unexpected scorers response shape: {exc!r}") from exc
-    log.info("Fetched %d scorers", len(scorers))
+    log.info("Fetched %d scorers%s", len(scorers), f" for matchday {matchday}" if matchday else "")
     return scorers
