@@ -33,6 +33,7 @@ from .history import (
     save_history,
     scorers_through,
     table_after,
+    validate_backfill,
 )
 from .logging_config import configure_logging
 from .models import AWARD_CATEGORIES, PredictionSet
@@ -173,6 +174,7 @@ def run(
     assigned = assign_gameweeks(matches)
     final = final_gameweeks(assigned)
     current = live_gameweek(assigned, final)
+    validate_backfill(history, assigned)
     record_snapshot(history, scorers, final, current)
     backfill_scorers(client, history, assigned, final,
                      fetch=lambda c, gw: fetch_scorers(c, matchday=gw))

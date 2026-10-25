@@ -210,9 +210,11 @@ def table_after(
 # gameweek. Two sources fill it:
 #   * snapshots: the live scorers list, saved between gameweeks, when it is
 #     exactly "totals through the last finished gameweek" (authoritative);
-#   * backfill: the API's scorers?matchday=N, whose meaning (running totals
-#     or that gameweek only) is detected by comparing its goals with the
-#     goals actually scored in that gameweek's matches.
+#   * backfill: the API's scorers?matchday=N, whose meaning is checked
+#     against the goals actually scored. In practice football-data.org ignores
+#     the filter and returns today's totals, which is detected (more goals
+#     listed than had been scored by then) and discarded ("ignored"), so
+#     those gameweeks show the scorer awards as not recorded.
 
 BACKFILL_PER_RUN = 5
 
@@ -233,7 +235,7 @@ def load_history(path: Path) -> dict:
         if not isinstance(data.get(key, {}), dict):
             raise HistoryError(f"{path}: {key!r} must be an object keyed by gameweek")
     mode = data.get("backfill_mode")
-    if mode not in (None, "cumulative", "per_gameweek"):
+    if mode not in (None, "cumulative", "per_gameweek", "ignored"):
         raise HistoryError(f"{path}: unknown backfill_mode {mode!r}")
     return {"snapshots": data.get("snapshots", {}), "backfill": data.get("backfill", {}),
             "backfill_mode": mode}
@@ -263,6 +265,32 @@ def goals_in_gameweek(assigned: list[tuple[int, Match]], gameweek: int) -> int:
     return sum(m.home_goals + m.away_goals for gw, m in assigned if gw == gameweek and m.finished)
 
 
+def goals_through(assigned: list[tuple[int, Match]], gameweek: int) -> int:
+    return sum(m.home_goals + m.away_goals for gw, m in assigned if gw <= gameweek and m.finished)
+
+
+def _mark_filter_ignored(history: dict, gameweek: int, listed: int, possible: int) -> None:
+    log.warning("Scorers for matchday %d list %d goals but only %d had been scored by then: "
+                "the API ignores the matchday filter, so backfilled scorer history is discarded "
+                "(those gameweeks show Golden Boot / Top Assister as not recorded)",
+                gameweek, listed, possible)
+    history["backfill_mode"] = "ignored"
+    history["backfill"] = {}
+
+
+def validate_backfill(history: dict, assigned: list[tuple[int, Match]]) -> bool:
+    """Re-check stored backfill against the goals actually scored; discard it if
+    any gameweek lists more goals than existed then. Returns True if discarded."""
+    if history["backfill_mode"] == "ignored":
+        return False
+    for key, rows in sorted(history["backfill"].items(), key=lambda kv: int(kv[0])):
+        listed, possible = sum(r["goals"] for r in rows), goals_through(assigned, int(key))
+        if listed > possible:
+            _mark_filter_ignored(history, int(key), listed, possible)
+            return True
+    return False
+
+
 def record_snapshot(history: dict, scorers, final: list[int], live: int | None) -> None:
     """Save the live scorers list as the last final gameweek's totals, when exact.
 
@@ -284,17 +312,23 @@ def backfill_scorers(client, history: dict, assigned, final: list[int], fetch,
     ``fetch(client, matchday)`` returns a scorers list. At most ``max_calls``
     requests per run; the rest are filled on later runs. Returns calls made.
     """
+    if history["backfill_mode"] == "ignored":
+        return 0
     missing = [gw for gw in final
                if str(gw) not in history["snapshots"] and str(gw) not in history["backfill"]]
     calls = 0
     for gw in missing[:max_calls]:
         scorers = fetch(client, gw)
         calls += 1
+        listed, possible = sum(s.goals for s in scorers), goals_through(assigned, gw)
+        if listed > possible:
+            _mark_filter_ignored(history, gw, listed, possible)
+            return calls
         history["backfill"][str(gw)] = _rows(scorers)
         log.info("Backfilled scorers for gameweek %d (%d players)", gw, len(scorers))
         if history["backfill_mode"] is None and gw >= 2:
-            listed, actual = sum(s.goals for s in scorers), goals_in_gameweek(assigned, gw)
-            # Running totals must exceed one gameweek's goals once past GW 1
+            actual = goals_in_gameweek(assigned, gw)
+            # Running totals exceed one gameweek's goals once past GW 1
             # (own goals are never credited, so a single week lists fewer).
             history["backfill_mode"] = "cumulative" if listed > actual else "per_gameweek"
             log.info("Scorers matchday filter looks like %s (listed %d goals, gameweek %d had %d)",

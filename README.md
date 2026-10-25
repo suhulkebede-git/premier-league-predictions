@@ -10,7 +10,7 @@ Before the season, nine friends each predicted the final table and 20 season awa
 - **Gameweek history.** Every finished gameweek's standings are rebuilt from match results: the table, the awards and everyone's points. You can step back to any gameweek, see up/down movement arrows, and follow a rank-by-gameweek bump chart.
 - **Live data.** It uses the free [football-data.org](https://www.football-data.org/) API: the table, results and scorers. Awards with no free data source are entered by hand.
 - **Zero cost to run.** A GitHub Actions schedule rescores every 15 minutes during kick-off windows and publishes a static site to GitHub Pages. The API token never reaches the browser.
-- **Tested.** There are 222 unit tests (Python `unittest`). The spec's worked examples are encoded as tests, and failures in every external dependency are mocked.
+- **Tested.** There are 242 unit tests (Python `unittest`). The spec's worked examples are encoded as tests, and failures in every external dependency are mocked.
 
 ## Quick start
 
@@ -143,11 +143,7 @@ The work followed a spec-first, small-increment process. Suhul Kebede acted as p
 
 - Last season's points and this season's club list come from the spreadsheet (A3:B22 and C3:C22). The promoted clubs are inferred as Coventry City, Hull City and Ipswich Town.
 - A gameweek's "window" is its fixtures within 4 days of the median kick-off. Only a match played outside its own window moves to the nearest other gameweek, so a Monday game next to a Tuesday round stays put.
-- Golden Boot and Top Assister history comes from two sources:
-  - snapshots of the live scorers list, taken between gameweeks
-  - a one-off backfill using the API's `matchday` filter, at most 5 calls a run
-
-  Whether that filter returns running totals or a single gameweek isn't documented, so it's detected by comparing its goals with the goals actually scored. Gameweeks that can't be rebuilt show these two awards as "not recorded".
+- Golden Boot and Top Assister history comes from snapshots of the live scorers list, taken between gameweeks (when it equals the totals through the last finished gameweek). The API's `matchday` filter on scorers turned out to be ignored: it returns today's totals for any gameweek. The tracker detects this (more goals listed than had been scored by then) and discards those results, so gameweeks before snapshots began show these two awards as "not recorded".
 - Red cards and bookings aren't on football-data.org's free tier, so "Club with Most Red Cards" is a hand entry.
 - The scorers endpoint ranks players by goals. The tracker requests the top 200 so that assist leaders with few goals are included.
 - The live view uses the API's own table, which already includes any points deductions. Rebuilt past tables rank by points, goal difference, then goals scored.
