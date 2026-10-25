@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 
-from .models import Prediction, TableRow
+from .models import AWARD_CATEGORIES, AwardStatus, PersonScore, Prediction, TableRow
 
 log = logging.getLogger(__name__)
 
@@ -105,3 +105,92 @@ def score_table_rules(pred: Prediction, pos: dict[str, int]) -> TableResult:
     res.misses_desc = tuple(sorted(misses, reverse=True))
     log.debug("%s table rules: %s (exact hits %d)", pred.person, res.breakdown, res.exact_count)
     return res
+
+
+@dataclass
+class AwardResult:
+    points: int = 0
+    hits: list[str] = field(default_factory=list)  # category keys that scored
+    alt_hits: list[str] = field(default_factory=list)  # "X or Y" picks where only Y leads
+
+
+def score_awards(pred: Prediction, awards: dict[str, AwardStatus]) -> AwardResult:
+    """10 points per category whose pick is among the current leaders.
+
+    A category with no leaders yet (hand entry pending, before 25 Dec, an
+    unsettled yes/no) scores nothing. The second half of an "X or Y" pick
+    never scores; it only counts as a tiebreak (Ugwe ruling).
+    """
+    res = AwardResult()
+    for category in AWARD_CATEGORIES:
+        pick = pred.awards.get(category.key)
+        status = awards.get(category.key)
+        if pick is None:
+            log.warning("%s has no pick for %s", pred.person, category.key)
+            continue
+        if status is None or not status.leaders:
+            continue
+        if pick.value in status.leaders:
+            res.points += POINTS["award"]
+            res.hits.append(category.key)
+        elif pick.alt is not None and pick.alt in status.leaders:
+            res.alt_hits.append(category.key)
+    return res
+
+
+def _rank_key(score: PersonScore) -> tuple:
+    # Higher total first; then "X or Y" tiebreak hits; then smaller misses
+    # compared largest-first (stinkers).
+    return (-score.total, -len(score.hits.get("tiebreak", ())), score.misses_desc)
+
+
+def score_all(
+    predictions: tuple[Prediction, ...] | list[Prediction],
+    table: list[TableRow],
+    season_clubs: tuple[str, ...] | list[str],
+    awards: dict[str, AwardStatus],
+) -> list[PersonScore]:
+    """Score and rank everyone. Returns PersonScores sorted by rank.
+
+    Everyone tied for the most exact hits gets the bonus, including when the
+    most is zero. Ranks are shared when total, tiebreak hits and every
+    miss are equal (1, 1, 3 ...).
+
+    Raises:
+        InvalidTableError: the table cannot be scored against.
+        ValueError: no predictions, or a duplicate person.
+    """
+    if not predictions:
+        raise ValueError("No predictions to score")
+    people = [p.person for p in predictions]
+    if len(set(people)) != len(people):
+        raise ValueError(f"Duplicate people in predictions: {people}")
+
+    pos = positions(table, season_clubs)
+    table_results = {p.person: score_table_rules(p, pos) for p in predictions}
+    award_results = {p.person: score_awards(p, awards) for p in predictions}
+    most = max(r.exact_count for r in table_results.values())
+
+    scores = []
+    for p in predictions:
+        t, a = table_results[p.person], award_results[p.person]
+        breakdown = dict(t.breakdown)
+        breakdown["most_exact"] = POINTS["most_exact"] if t.exact_count == most else 0
+        breakdown["awards"] = a.points
+        hits = {k: tuple(v) for k, v in t.hits.items()}
+        hits["awards"] = tuple(a.hits)
+        hits["tiebreak"] = tuple(a.alt_hits)
+        scores.append(PersonScore(person=p.person, total=sum(breakdown.values()),
+                                  breakdown=breakdown, hits=hits,
+                                  misses_desc=t.misses_desc))
+
+    scores.sort(key=_rank_key)
+    ranked, prev_key, rank = [], None, 0
+    for i, s in enumerate(scores):
+        key = _rank_key(s)
+        if key != prev_key:
+            rank, prev_key = i + 1, key
+        ranked.append(PersonScore(**{**s.__dict__, "rank": rank}))
+    log.info("Scored %d people; most exact hits %d; leader %s on %d",
+             len(ranked), most, ranked[0].person, ranked[0].total)
+    return ranked

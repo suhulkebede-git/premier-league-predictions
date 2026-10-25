@@ -5,8 +5,14 @@ from plpredict.logging_config import configure_logging
 
 
 class ConfigureLoggingTests(unittest.TestCase):
+    def setUp(self):
+        root = logging.getLogger()
+        self._saved = (root.level, list(root.handlers))
+
     def tearDown(self):
-        logging.getLogger().setLevel(logging.WARNING)
+        root = logging.getLogger()
+        root.setLevel(self._saved[0])
+        root.handlers[:] = self._saved[1]
 
     def test_sets_requested_level(self):
         configure_logging("DEBUG")
