@@ -207,3 +207,132 @@ class CliTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+from plpredict.fetch import Match  # noqa: E402
+from plpredict.main import load_people, table_updated  # noqa: E402
+
+
+def gameweek_matches(gw, finished=10, last_updated="2026-09-01T18:00:00Z"):
+    """Ten API-shaped matches for gameweek gw (one week apart), the first
+    ``finished`` of them played (home side wins 2-1)."""
+    out = []
+    pairs = list(zip(CLUBS[0::2], CLUBS[1::2]))
+    for i, (h, a) in enumerate(pairs):
+        date = f"2026-08-{15 + 7 * (gw - 1):02d}T14:00:00Z" if gw <= 2 else f"2026-08-29T14:00:00Z"
+        if i < finished:
+            out.append(match(h, a, 2, 1, date=date, matchday=gw, last_updated=last_updated))
+        else:
+            out.append(match(h, a, None, None, date=date, status="TIMED", matchday=gw))
+    return out
+
+
+def scorers_body(*rows):
+    return {"scorers": [{"player": {"name": p}, "goals": g, "assists": a} for p, g, a in rows]}
+
+
+class GameweekRunTests(unittest.TestCase):
+    def setUp(self):
+        self.dir = tempfile.TemporaryDirectory()
+        self.data = Path(self.dir.name) / "data"
+        shutil.copytree(REPO_DATA, self.data)
+        (self.data / "history.json").write_text(
+            '{"backfill": {}, "backfill_mode": null, "snapshots": {}}\n')
+        self.out = Path(self.dir.name) / "site" / "standings.json"
+
+    def tearDown(self):
+        self.dir.cleanup()
+
+    def run_with(self, matches, *scorer_bodies):
+        session = FakeSession(FakeResponse(body=standings_body()),
+                              FakeResponse(body={"matches": matches}),
+                              *[FakeResponse(body=b) for b in scorer_bodies])
+        client = Client("t", session=session, retries=0, sleep=lambda s: None)
+        with self.assertLogs("plpredict", "INFO"):
+            run(data_dir=self.data, out_path=self.out, client=client,
+                today=date(2026, 9, 1), now=NOW)
+        return json.loads(self.out.read_text()), session  # what the site reads
+
+    def test_finished_gameweeks_live_gameweek_and_backfill(self):
+        matches = gameweek_matches(1) + gameweek_matches(2) + gameweek_matches(3, finished=1)
+        data, session = self.run_with(
+            matches,
+            scorers_body(("Erling Haaland", 5, 0)),                     # live
+            scorers_body(("Erling Haaland", 2, 0)),                     # matchday 1
+            scorers_body(("Erling Haaland", 4, 0), ("Bukayo Saka", 1, 2)))  # matchday 2
+        self.assertEqual([g["gameweek"] for g in data["gameweeks"]], [1, 2])
+        self.assertEqual((data["live"]["gameweek"], data["live"]["in_progress"]), (3, True))
+        self.assertEqual(data["scores"], data["live"]["scores"])
+        self.assertEqual(len(data["gameweeks"][0]["scores"]), 9)
+        self.assertEqual([c[1] for c in session.calls[3:]],
+                         [{"limit": 200, "matchday": 1}, {"limit": 200, "matchday": 2}])
+        history = json.loads((self.data / "history.json").read_text())
+        self.assertEqual(sorted(history["backfill"]), ["1", "2"])
+        # GW 2's list has 5 goals but its matches had 30: one gameweek's scorers.
+        self.assertEqual(history["backfill_mode"], "per_gameweek")
+        boot = next(a for a in data["gameweeks"][1]["awards"] if a["key"] == "golden_boot")
+        self.assertEqual(boot["leaders"], ["Erling Haaland"])  # 2 + 4 = 6 through GW 2
+        gw1_table = data["gameweeks"][0]["table"]
+        self.assertEqual(gw1_table[0]["played"], 1)
+        self.assertEqual(data["table_updated_at"], "2026-09-01T18:00:00+00:00")
+        self.assertEqual(data["table_updated_source"], "api_last_updated")
+        self.assertEqual(data["people"]["UGWE"], {"name": "Michael Ugwe", "initials": "MU"})
+
+    def test_between_gameweeks_records_snapshot_without_backfill(self):
+        matches = gameweek_matches(1) + gameweek_matches(2, finished=0)
+        data, session = self.run_with(matches, scorers_body(("Erling Haaland", 2, 1)))
+        self.assertEqual(len(session.calls), 3)  # no backfill call needed
+        self.assertEqual((data["live"]["gameweek"], data["live"]["in_progress"]), (1, False))
+        history = json.loads((self.data / "history.json").read_text())
+        self.assertEqual(history["snapshots"]["1"],
+                         [{"player": "Erling Haaland", "goals": 2, "assists": 1}])
+        boot = next(a for a in data["gameweeks"][0]["awards"] if a["key"] == "golden_boot")
+        self.assertEqual(boot["leaders"], ["Erling Haaland"])
+
+    def test_before_the_season(self):
+        data, _ = self.run_with(gameweek_matches(1, finished=0), scorers_body())
+        self.assertEqual(data["gameweeks"], [])
+        self.assertEqual((data["live"]["gameweek"], data["live"]["in_progress"]), (None, False))
+        self.assertIsNone(data["table_updated_at"])
+
+
+class TableUpdatedTests(unittest.TestCase):
+    def m(self, status="FINISHED", last=None, day=1):
+        when = datetime(2026, 9, day, 14, tzinfo=timezone.utc)
+        goals = (1, 0) if status == "FINISHED" else (None, None)
+        return Match(when, status, "Arsenal", "Chelsea", *goals, matchday=1, last_updated=last)
+
+    def test_prefers_api_last_updated(self):
+        late = datetime(2026, 9, 2, 9, tzinfo=timezone.utc)
+        self.assertEqual(table_updated([self.m(last=late), self.m(day=3)]),
+                         ("2026-09-02T09:00:00+00:00", "api_last_updated"))
+
+    def test_falls_back_to_latest_result(self):
+        self.assertEqual(table_updated([self.m(day=1), self.m(day=4), self.m("TIMED", day=9)]),
+                         ("2026-09-04T14:00:00+00:00", "last_result_kickoff"))
+
+    def test_no_results(self):
+        self.assertEqual(table_updated([self.m("TIMED")]), (None, "none"))
+
+
+class LoadPeopleTests(unittest.TestCase):
+    def setUp(self):
+        self.dir = tempfile.TemporaryDirectory()
+        self.path = Path(self.dir.name) / "people.json"
+
+    def tearDown(self):
+        self.dir.cleanup()
+
+    def test_repo_file(self):
+        people = load_people(REPO_DATA / "people.json")
+        self.assertEqual(people["SUHUL"], {"name": "Suhul K", "initials": "SK"})
+
+    def test_missing_file(self):
+        with self.assertLogs("plpredict.main", "WARNING"):
+            self.assertEqual(load_people(self.path), {})
+
+    def test_bad_files(self):
+        for text in ("{", '{"people": []}', '{"people": {"ED": {"name": "Ed"}}}'):
+            self.path.write_text(text)
+            with self.assertRaises(ValueError):
+                load_people(self.path)
