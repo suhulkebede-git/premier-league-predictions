@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from .fetch import Match
+from .fetch import Match, Scorer
 from .models import TableRow
 from .names import NameResolver
 
@@ -202,3 +202,125 @@ def table_after(
                      draw=stats[c]["draw"], lost=stats[c]["lost"], goals_for=stats[c]["gf"],
                      goals_against=stats[c]["ga"], points=stats[c]["pts"])
             for i, c in enumerate(order)]
+
+
+# --- Golden Boot / Top Assister history -------------------------------------
+#
+# data/history.json keeps the scorers list as it stood after each finished
+# gameweek. Two sources fill it:
+#   * snapshots: the live scorers list, saved between gameweeks, when it is
+#     exactly "totals through the last finished gameweek" (authoritative);
+#   * backfill: the API's scorers?matchday=N, whose meaning (running totals
+#     or that gameweek only) is detected by comparing its goals with the
+#     goals actually scored in that gameweek's matches.
+
+BACKFILL_PER_RUN = 5
+
+
+def load_history(path: Path) -> dict:
+    """Read data/history.json ({"snapshots", "backfill", "backfill_mode"})."""
+    empty = {"snapshots": {}, "backfill": {}, "backfill_mode": None}
+    try:
+        data = json.loads(Path(path).read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        log.info("No history file at %s; starting fresh", path)
+        return empty
+    except json.JSONDecodeError as exc:
+        raise HistoryError(f"{path} is not valid JSON: {exc}") from exc
+    if not isinstance(data, dict):
+        raise HistoryError(f"{path} must contain a JSON object")
+    for key in ("snapshots", "backfill"):
+        if not isinstance(data.get(key, {}), dict):
+            raise HistoryError(f"{path}: {key!r} must be an object keyed by gameweek")
+    mode = data.get("backfill_mode")
+    if mode not in (None, "cumulative", "per_gameweek"):
+        raise HistoryError(f"{path}: unknown backfill_mode {mode!r}")
+    return {"snapshots": data.get("snapshots", {}), "backfill": data.get("backfill", {}),
+            "backfill_mode": mode}
+
+
+def save_history(history: dict, path: Path) -> bool:
+    """Write history if it changed. Returns True when the file was (re)written."""
+    text = json.dumps(history, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
+    path = Path(path)
+    try:
+        if path.exists() and path.read_text(encoding="utf-8") == text:
+            return False
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text, encoding="utf-8")
+    except OSError:
+        log.exception("Could not write history to %s", path)
+        raise
+    log.info("Saved scorer history to %s", path)
+    return True
+
+
+def _rows(scorers) -> list[dict]:
+    return [{"player": s.player, "goals": s.goals, "assists": s.assists} for s in scorers]
+
+
+def goals_in_gameweek(assigned: list[tuple[int, Match]], gameweek: int) -> int:
+    return sum(m.home_goals + m.away_goals for gw, m in assigned if gw == gameweek and m.finished)
+
+
+def record_snapshot(history: dict, scorers, final: list[int], live: int | None) -> None:
+    """Save the live scorers list as the last final gameweek's totals, when exact.
+
+    Only between gameweeks (nothing in progress) does the live list equal the
+    totals through the last finished gameweek.
+    """
+    if not final or live is not None:
+        return
+    key = str(final[-1])
+    if key not in history["snapshots"]:
+        history["snapshots"][key] = _rows(scorers)
+        log.info("Recorded scorer snapshot for gameweek %s", key)
+
+
+def backfill_scorers(client, history: dict, assigned, final: list[int], fetch,
+                     max_calls: int = BACKFILL_PER_RUN) -> int:
+    """Fetch scorers?matchday=N for finished gameweeks with no history yet.
+
+    ``fetch(client, matchday)`` returns a scorers list. At most ``max_calls``
+    requests per run; the rest are filled on later runs. Returns calls made.
+    """
+    missing = [gw for gw in final
+               if str(gw) not in history["snapshots"] and str(gw) not in history["backfill"]]
+    calls = 0
+    for gw in missing[:max_calls]:
+        scorers = fetch(client, gw)
+        calls += 1
+        history["backfill"][str(gw)] = _rows(scorers)
+        log.info("Backfilled scorers for gameweek %d (%d players)", gw, len(scorers))
+        if history["backfill_mode"] is None and gw >= 2:
+            listed, actual = sum(s.goals for s in scorers), goals_in_gameweek(assigned, gw)
+            # Running totals must exceed one gameweek's goals once past GW 1
+            # (own goals are never credited, so a single week lists fewer).
+            history["backfill_mode"] = "cumulative" if listed > actual else "per_gameweek"
+            log.info("Scorers matchday filter looks like %s (listed %d goals, gameweek %d had %d)",
+                     history["backfill_mode"], listed, gw, actual)
+    if len(missing) > max_calls:
+        log.info("Backfilled %d gameweek(s); %d left for later runs", calls, len(missing) - calls)
+    return calls
+
+
+def scorers_through(history: dict, gameweek: int):
+    """Scorers totals after a finished gameweek, or None if not recorded."""
+    snap = history["snapshots"].get(str(gameweek))
+    if snap is not None:
+        return [Scorer(r["player"], r["goals"], r["assists"]) for r in snap]
+    mode, back = history["backfill_mode"], history["backfill"]
+    if mode == "cumulative" or (mode is None and gameweek == 1):
+        rows = back.get(str(gameweek))
+        return None if rows is None else [Scorer(r["player"], r["goals"], r["assists"]) for r in rows]
+    if mode == "per_gameweek":
+        if any(str(g) not in back for g in range(1, gameweek + 1)):
+            return None
+        totals: dict[str, list[int]] = {}
+        for g in range(1, gameweek + 1):
+            for r in back[str(g)]:
+                t = totals.setdefault(r["player"], [0, 0])
+                t[0] += r["goals"]
+                t[1] += r["assists"]
+        return [Scorer(p, g, a) for p, (g, a) in totals.items()]
+    return None

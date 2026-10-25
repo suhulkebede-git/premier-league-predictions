@@ -1,7 +1,7 @@
 {
-  "_comment": "Hand-entered awards. Fill 'leaders' when known (several if tied) and set 'settled' true once final. Names can use any spelling in aliases.json.",
-  "most_red_cards": {"leaders": [], "settled": false},
-  "first_sacked_manager": {"leaders": [], "settled": false},
-  "relegation_final_day": {"leaders": [], "settled": false},
-  "pfa_player": {"leaders": [], "settled": false}
+  "_comment": "Hand-entered awards. Fill 'leaders' when known (several if tied), set 'settled' true once final, and set 'from_gameweek' to the gameweek it happened in so history shows it from then on. Names can use any spelling in aliases.json.",
+  "most_red_cards": {"leaders": [], "settled": false, "from_gameweek": null},
+  "first_sacked_manager": {"leaders": [], "settled": false, "from_gameweek": null},
+  "relegation_final_day": {"leaders": [], "settled": false, "from_gameweek": null},
+  "pfa_player": {"leaders": [], "settled": false, "from_gameweek": null}
 }

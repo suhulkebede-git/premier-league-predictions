@@ -216,3 +216,143 @@ class LoadAdjustmentsTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+from plpredict.fetch import Scorer  # noqa: E402
+from plpredict.history import (  # noqa: E402
+    backfill_scorers,
+    goals_in_gameweek,
+    load_history,
+    record_snapshot,
+    save_history,
+    scorers_through,
+)
+
+
+def fresh():
+    return {"snapshots": {}, "backfill": {}, "backfill_mode": None}
+
+
+class HistoryFileTests(unittest.TestCase):
+    def setUp(self):
+        self.dir = tempfile.TemporaryDirectory()
+        self.path = Path(self.dir.name) / "history.json"
+
+    def tearDown(self):
+        self.dir.cleanup()
+
+    def test_missing_file_starts_fresh(self):
+        with self.assertLogs("plpredict.history", "INFO"):
+            self.assertEqual(load_history(self.path), fresh())
+
+    def test_round_trip_and_only_writes_on_change(self):
+        h = fresh()
+        h["snapshots"]["3"] = [{"player": "Erling Haaland", "goals": 4, "assists": 0}]
+        with self.assertLogs("plpredict.history", "INFO"):
+            self.assertTrue(save_history(h, self.path))
+        self.assertFalse(save_history(h, self.path))
+        self.assertEqual(load_history(self.path), h)
+
+    def test_bad_json(self):
+        self.path.write_text("{")
+        with self.assertRaisesRegex(HistoryError, "not valid JSON"):
+            load_history(self.path)
+
+    def test_bad_shapes(self):
+        for data, msg in (([], "JSON object"), ({"snapshots": []}, "keyed by gameweek"),
+                          ({"backfill_mode": "weekly"}, "unknown backfill_mode")):
+            self.path.write_text(json.dumps(data))
+            with self.assertRaisesRegex(HistoryError, msg):
+                load_history(self.path)
+
+    def test_repo_file_loads(self):
+        repo = Path(__file__).resolve().parents[1] / "data" / "history.json"
+        load_history(repo)
+
+
+class SnapshotTests(unittest.TestCase):
+    SCORERS = [Scorer("Erling Haaland", 5, 1)]
+
+    def test_recorded_between_gameweeks(self):
+        h = fresh()
+        with self.assertLogs("plpredict.history", "INFO"):
+            record_snapshot(h, self.SCORERS, [1, 2], None)
+        self.assertEqual(h["snapshots"], {"2": [{"player": "Erling Haaland", "goals": 5, "assists": 1}]})
+
+    def test_not_recorded_mid_gameweek_or_twice(self):
+        h = fresh()
+        record_snapshot(h, self.SCORERS, [1, 2], 3)
+        self.assertEqual(h["snapshots"], {})
+        h["snapshots"]["2"] = []
+        record_snapshot(h, self.SCORERS, [1, 2], None)
+        self.assertEqual(h["snapshots"]["2"], [])
+
+    def test_nothing_final(self):
+        h = fresh()
+        record_snapshot(h, self.SCORERS, [], None)
+        self.assertEqual(h["snapshots"], {})
+
+
+class BackfillTests(unittest.TestCase):
+    """Three gameweeks: Haaland scores 2, 1, 3; Saka 0, 2, 0 (8 goals total)."""
+
+    PER_GW = {1: [Scorer("Erling Haaland", 2, 0)],
+              2: [Scorer("Bukayo Saka", 2, 1), Scorer("Erling Haaland", 1, 0)],
+              3: [Scorer("Erling Haaland", 3, 0)]}
+    CUMULATIVE = {1: [Scorer("Erling Haaland", 2, 0)],
+                  2: [Scorer("Erling Haaland", 3, 0), Scorer("Bukayo Saka", 2, 1)],
+                  3: [Scorer("Erling Haaland", 6, 0), Scorer("Bukayo Saka", 2, 1)]}
+
+    def setUp(self):
+        self.assigned = [(1, m("Arsenal", "Chelsea", 2, 0, 1)), (2, m("Arsenal", "Chelsea", 3, 0, 2)),
+                         (3, m("Arsenal", "Chelsea", 3, 0, 3))]
+
+    def run_backfill(self, source, final=(1, 2, 3), history=None, max_calls=5):
+        h = history or fresh()
+        calls = []
+
+        def fetch(client, gw):
+            calls.append(gw)
+            return source[gw]
+
+        with self.assertLogs("plpredict.history", "INFO"):
+            backfill_scorers(None, h, self.assigned, list(final), fetch, max_calls=max_calls)
+        return h, calls
+
+    def test_goals_in_gameweek(self):
+        self.assertEqual(goals_in_gameweek(self.assigned, 2), 3)
+
+    def test_detects_per_gameweek_and_sums(self):
+        h, calls = self.run_backfill(self.PER_GW)
+        self.assertEqual(calls, [1, 2, 3])
+        self.assertEqual(h["backfill_mode"], "per_gameweek")
+        totals = {s.player: s.goals for s in scorers_through(h, 3)}
+        self.assertEqual(totals, {"Erling Haaland": 6, "Bukayo Saka": 2})
+
+    def test_detects_cumulative(self):
+        h, _ = self.run_backfill(self.CUMULATIVE)
+        self.assertEqual(h["backfill_mode"], "cumulative")
+        totals = {s.player: s.goals for s in scorers_through(h, 2)}
+        self.assertEqual(totals, {"Erling Haaland": 3, "Bukayo Saka": 2})
+
+    def test_gameweek_one_same_either_way(self):
+        h, _ = self.run_backfill(self.PER_GW, final=(1,))
+        self.assertIsNone(h["backfill_mode"])
+        self.assertEqual(scorers_through(h, 1), [Scorer("Erling Haaland", 2, 0)])
+
+    def test_call_limit_and_resume(self):
+        h, calls = self.run_backfill(self.PER_GW, max_calls=2)
+        self.assertEqual(calls, [1, 2])
+        self.assertIsNone(scorers_through(h, 3))  # not recorded yet
+        h, calls = self.run_backfill(self.PER_GW, history=h)
+        self.assertEqual(calls, [3])
+
+    def test_snapshot_wins_and_is_not_refetched(self):
+        h = fresh()
+        h["snapshots"]["2"] = [{"player": "Cole Palmer", "goals": 4, "assists": 2}]
+        h, calls = self.run_backfill(self.PER_GW, history=h)
+        self.assertNotIn(2, calls)
+        self.assertEqual(scorers_through(h, 2), [Scorer("Cole Palmer", 4, 2)])
+
+    def test_unrecorded_gameweek(self):
+        self.assertIsNone(scorers_through(fresh(), 4))
