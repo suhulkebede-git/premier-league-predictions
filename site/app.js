@@ -10,7 +10,7 @@
 const PERSON_COLOURS = ["#3987e5", "#d95926", "#199e70", "#c98500", "#d55181",
   "#008300", "#9085e9", "#e66767", "#2b9fb2"];
 
-const PAGES = ["leaderboard", "awards", "table", "rules"];
+const PAGES = ["leaderboard", "awards", "table", "week", "recaps", "h2h", "rules"];
 const GW_PAGES = new Set(["leaderboard", "awards", "table"]);
 
 const SHORT = {
@@ -28,7 +28,8 @@ const BREAKDOWN = [
   ["awards", "Awards"],
 ];
 
-const state = { data: null, page: "leaderboard", gw: "live", open: null, focus: null };
+const state = { data: null, page: "leaderboard", gw: "live", open: null, focus: null,
+  view: "points", h2h: null };
 const screen = document.getElementById("screen");
 
 // ---------- helpers ----------
@@ -220,6 +221,7 @@ function leaderboardList(entry) {
   const list = el("ol", { class: "rows board", "aria-label": `Leaderboard, ${entryLabel(entry)}` });
   list.append(el("li", { class: "row head", "aria-hidden": "true" },
     el("span", {}, "Pos"), el("span", {}), el("span", {}, "Name"), el("span", { class: "pts" }, "Points")));
+  const tally = winTally();
   entry.scores.forEach((s, i) => {
     const who = person(s.person);
     const worst = missesFor(s.person, entry).reduce((a, b) => (b.diff > a.diff ? b : a));
@@ -233,7 +235,8 @@ function leaderboardList(entry) {
       el("span", { class: "rank" }, s.rank),
       el("span", { class: "avatar", style: `background:${who.colour}`, "aria-hidden": "true" }, who.initials),
       el("span", { class: "who" }, name, moveBadge(s.person, entry),
-        el("span", { class: "sub" }, `Stinker: ${short(worst.club)}, ${worst.diff} off`)),
+        el("span", { class: "sub" }, `Stinker: ${short(worst.club)}, ${worst.diff} off`,
+          tally[s.person] ? `. ${plural(tally[s.person], "GW win", "GW wins")}` : "")),
       el("span", { class: "pts" }, el("strong", {}, s.total), el("span", {}, "pts"))));
     const note = tieNote(s, entry.scores.at(i - 1) && i > 0 ? entry.scores.at(i - 1) : null);
     if (note) list.append(el("li", { class: "row tie-row" }, el("span", { class: "tie-note" }, note)));
@@ -242,19 +245,30 @@ function leaderboardList(entry) {
   return list;
 }
 
+function viewToggle() {
+  const opt = (key, label) => el("button", { type: "button", class: "seg", "aria-pressed": String(state.view === key),
+    onclick: () => { state.view = key; render(); } }, label);
+  return el("div", { class: "segmented", role: "group", "aria-label": "Show" }, opt("points", "Points"), opt("odds", "Odds"));
+}
+
 function leaderboardPage() {
   const entry = entryFor(state.gw);
+  const hasOdds = !entry.final && state.data.simulations > 0;
+  const showOdds = hasOdds && state.view === "odds";
   const chartPanel = el("section", { class: "panel", "aria-labelledby": "chart-title" },
     el("h2", { id: "chart-title" }, "Rank by gameweek"),
     el("p", { class: "section-note" }, "Tap a line or a name to pick someone out; tap a gameweek to jump to it."),
     el("div", { class: "chart-scroll", id: "chart" }));
   const board = el("section", { "aria-labelledby": "board-title" },
-    el("h2", { id: "board-title" }, entry.final ? `After gameweek ${entry.gameweek}` : "Live standings"),
-    el("p", { class: "section-note" }, entry.final
-      ? "Points as they stood when this gameweek finished."
-      : "Points if the season ended now."),
+    el("div", { class: "board-head" },
+      el("h2", { id: "board-title" }, showOdds ? "Chance of winning"
+        : entry.final ? `After gameweek ${entry.gameweek}` : "Live standings"),
+      hasOdds ? viewToggle() : null),
+    el("p", { class: "section-note" }, showOdds
+      ? `Model estimate from ${state.data.simulations.toLocaleString("en-GB")} simulated seasons. Golden Boot, Top Assister and red-card leaders are assumed to hold.`
+      : entry.final ? "Points as they stood when this gameweek finished." : "Points if the season ended now."),
     gwControl(),
-    leaderboardList(entry));
+    showOdds ? oddsList() : leaderboardList(entry));
   requestAnimationFrame(drawChart);
   return [el("div", { class: "board-grid" }, board, chartPanel)];
 }
@@ -398,18 +412,26 @@ function pickSummary(a, preds) {
 
 function tablePage() {
   const entry = entryFor(state.gw);
+  const odds = !entry.final && state.data.club_odds && Object.keys(state.data.club_odds).length
+    ? state.data.club_odds : null;
   const rows = entry.table.map((r) => {
     const gd = r.goals_for - r.goals_against;
+    const o = odds && odds[r.club];
     return el("tr", { class: r.position <= 5 ? "zone top" : r.position >= 18 ? "zone drop" : "" },
       el("td", {}, r.position), el("td", {}, short(r.club)), el("td", {}, r.played),
-      el("td", {}, signed(gd)), el("td", {}, r.points));
+      el("td", {}, signed(gd)), el("td", {}, r.points),
+      o ? [el("td", { class: "odd" }, pct(o.title)), el("td", { class: "odd" }, pct(o.top5)),
+        el("td", { class: "odd" }, pct(o.relegation))] : null);
   });
   return [el("h2", {}, "Premier League table"),
     el("p", { class: "section-note" }, `${entryLabel(entry)}. Blue rows: top 5. Red rows: relegation.`),
     gwControl(),
-    el("table", { class: "pl" },
-      el("thead", {}, el("tr", {}, ["Pos", "Club", "P", "GD", "Pts"].map((h) => el("th", {}, h)))),
-      el("tbody", {}, rows))];
+    el("div", { class: "table-scroll" }, el("table", { class: "pl" },
+      el("thead", {}, el("tr", {}, ["Pos", "Club", "P", "GD", "Pts", ...(odds ? ["Title", "Top 5", "Down"] : [])]
+        .map((h) => el("th", {}, h)))),
+      el("tbody", {}, rows))),
+    odds ? el("p", { class: "section-note", style: "margin-top:1rem" },
+      "Title, Top 5 and Down are the model's chances from the season simulation.") : null];
 }
 
 function rulesPage() {
@@ -428,7 +450,9 @@ function rulesPage() {
     el("h2", {}, "Gameweeks"),
     el("p", {}, "Each finished gameweek is frozen as it stood. A postponed game counts in the gameweek it's actually played; points deductions count from the gameweek they happen."),
     el("h2", {}, "Awards"),
-    el("p", {}, "Live awards go to whoever leads right now. Christmas awards settle on 25 December. PFA Player, first sacking, red cards and the final-day question are entered by hand."))];
+    el("p", {}, "Live awards go to whoever leads right now. Christmas awards settle on 25 December. Red cards come from the Fantasy Premier League data. PFA Player, first sacking and the final-day question are entered by hand."),
+    el("h2", {}, "Odds"),
+    el("p", {}, "The rest of the season is played out thousands of times with a simple goals model built from this season's results, and everyone is scored in each simulated finish. Your chance of winning is how often you finish first. Golden Boot, Top Assister and red-card leaders are assumed to hold; hand-entered awards count once entered."))];
 }
 
 // ---------- routing ----------
@@ -440,8 +464,9 @@ function navigate(page, gw) {
 }
 
 function route() {
-  const [page, gwPart] = location.hash.slice(1).split("/");
+  const [page, gwPart, other] = location.hash.slice(1).split("/");
   state.page = PAGES.includes(page) ? page : "leaderboard";
+  if (state.page === "h2h") state.h2h = gwPart ? [gwPart, other] : state.h2h;
   const gw = gwPart && /^gw\d+$/.test(gwPart) ? Number(gwPart.slice(2)) : "live";
   if (state.data && gw !== "live" && !state.data.gameweeks.some((g) => g.gameweek === gw)) {
     state.gw = "live";
@@ -457,7 +482,8 @@ function render() {
     else tab.removeAttribute("aria-current");
   }
   if (!state.data) return;
-  const views = { leaderboard: leaderboardPage, awards: awardsPage, table: tablePage, rules: rulesPage };
+  const views = { leaderboard: leaderboardPage, awards: awardsPage, table: tablePage, week: weekPage,
+    recaps: recapsPage, h2h: h2hPage, rules: rulesPage };
   screen.replaceChildren(...views[state.page]());
 }
 

@@ -247,6 +247,7 @@ def resolve_awards(
     aliases: Aliases,
     today: date,
     gameweek: int | None = None,
+    red_cards: dict[str, int] | None = None,
 ) -> dict[str, AwardStatus]:
     """Status of all 20 award categories, live or as of a past gameweek.
 
@@ -269,8 +270,15 @@ def resolve_awards(
             statuses[key] = AwardStatus(key, (), False, "not recorded for this gameweek")
     else:
         statuses.update(_scorer_awards(scorers, aliases, over))
-    statuses.update({k: v for k, v in manual.items()
-                     if gameweek is None or v.from_gameweek is None or v.from_gameweek <= gameweek})
+    if red_cards:
+        race = _race(sorted(red_cards.items()), lambda kv: kv[1], lambda kv: kv[0])
+        statuses["most_red_cards"] = _status("most_red_cards", race, over)
+    # A hand entry wins once it has an answer; an empty one only fills a gap.
+    for k, v in manual.items():
+        if gameweek is not None and v.from_gameweek is not None and v.from_gameweek > gameweek:
+            continue
+        if v.leaders or k not in statuses:
+            statuses[k] = v
     for category in AWARD_CATEGORIES:
         statuses.setdefault(category.key, AwardStatus(
             category.key, (), False,

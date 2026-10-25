@@ -8,6 +8,7 @@ version = "0.1.0"
 description = "Live points tracker for a friends' Premier League prediction league"
 requires-python = ">=3.11"
 dependencies = [
+    "numpy>=1.26",
     "openpyxl>=3.1",
     "requests>=2.31",
 ]

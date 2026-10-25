@@ -221,7 +221,7 @@ BACKFILL_PER_RUN = 5
 
 def load_history(path: Path) -> dict:
     """Read data/history.json ({"snapshots", "backfill", "backfill_mode"})."""
-    empty = {"snapshots": {}, "backfill": {}, "backfill_mode": None}
+    empty = {"snapshots": {}, "backfill": {}, "backfill_mode": None, "red_cards": {}}
     try:
         data = json.loads(Path(path).read_text(encoding="utf-8"))
     except FileNotFoundError:
@@ -231,14 +231,14 @@ def load_history(path: Path) -> dict:
         raise HistoryError(f"{path} is not valid JSON: {exc}") from exc
     if not isinstance(data, dict):
         raise HistoryError(f"{path} must contain a JSON object")
-    for key in ("snapshots", "backfill"):
+    for key in ("snapshots", "backfill", "red_cards"):
         if not isinstance(data.get(key, {}), dict):
             raise HistoryError(f"{path}: {key!r} must be an object keyed by gameweek")
     mode = data.get("backfill_mode")
     if mode not in (None, "cumulative", "per_gameweek", "ignored"):
         raise HistoryError(f"{path}: unknown backfill_mode {mode!r}")
     return {"snapshots": data.get("snapshots", {}), "backfill": data.get("backfill", {}),
-            "backfill_mode": mode}
+            "backfill_mode": mode, "red_cards": data.get("red_cards", {})}
 
 
 def save_history(history: dict, path: Path) -> bool:
@@ -358,3 +358,20 @@ def scorers_through(history: dict, gameweek: int):
                 t[1] += r["assists"]
         return [Scorer(p, g, a) for p, (g, a) in totals.items()]
     return None
+
+
+def record_red_cards(history: dict, counts: dict[str, int] | None, final: list[int],
+                     live: int | None) -> None:
+    """Save red cards per club as the last final gameweek's totals, between gameweeks."""
+    if counts is None or not final or live is not None:
+        return
+    key = str(final[-1])
+    stored = history.setdefault("red_cards", {})
+    if key not in stored:
+        stored[key] = dict(sorted(counts.items()))
+        log.info("Recorded red-card snapshot for gameweek %s", key)
+
+
+def red_cards_through(history: dict, gameweek: int) -> dict[str, int] | None:
+    """Red cards per club after a finished gameweek, or None if not recorded."""
+    return history.get("red_cards", {}).get(str(gameweek))

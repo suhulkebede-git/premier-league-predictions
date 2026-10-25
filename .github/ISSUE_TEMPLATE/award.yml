@@ -1,0 +1,53 @@
+name: Hand-entry award
+description: Record the winner of an award the site can't work out by itself.
+title: "Award: "
+labels: ["award"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Only the repo owner and collaborators can save awards; anyone else's submission is closed without changes.
+        The site picks it up on the next update (within about 15 minutes).
+  - type: dropdown
+    id: award
+    attributes:
+      label: Award
+      options:
+        - PFA Player
+        - First Sacked Manager
+        - Will the relegation battle go to the final day?
+        - Club with Most Red Cards
+    validations:
+      required: true
+  - type: input
+    id: winner
+    attributes:
+      label: Winner
+      description: >-
+        Any spelling the sheet uses works (e.g. "Spurs", "Big Erl"). Ties: separate with commas.
+        Yes/no awards: type yes or no. Type none to clear the award.
+        Most Red Cards is automatic from FPL; an entry here overrides it.
+      placeholder: Bruno Fernandes
+    validations:
+      required: true
+  - type: input
+    id: gameweek
+    attributes:
+      label: Gameweek it happened
+      description: History shows the award from this gameweek on. Leave blank if unsure.
+      placeholder: "12"
+  - type: dropdown
+    id: final
+    attributes:
+      label: Is this final?
+      options:
+        - "No - it could still change"
+        - "Yes - it's decided"
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: The name is spelled correctly even though nobody picked it

@@ -8,9 +8,11 @@ Before the season, nine friends each predicted the final table and 20 season awa
 
 - **Scoring engine.** It covers exact positions, champion, top 5, relegation, 6th and 7th, one-off points in 8th to 17th, a most-exact bonus and 20 award categories. Ties are broken by "stinkers": everyone's worst miss is compared, then the next worst, and so on.
 - **Gameweek history.** Every finished gameweek's standings are rebuilt from match results: the table, the awards and everyone's points. You can step back to any gameweek, see up/down movement arrows, and follow a rank-by-gameweek bump chart.
-- **Live data.** It uses the free [football-data.org](https://www.football-data.org/) API: the table, results and scorers. Awards with no free data source are entered by hand.
+- **Forecasts.** 5,000 simulated finishes of the remaining fixtures give each person's chance of winning, finishing top 3 or finishing last, plus each club's title, top-5 and relegation odds.
+- **This week, recaps and head to head.** The next gameweek's fixtures show their likely results and whose points swing with each one. Every finished gameweek gets a recap (winner, stinker, points gained and lost) with a one-tap WhatsApp share. Any two people can be compared on just the picks where they differ.
+- **Live data.** It uses the free [football-data.org](https://www.football-data.org/) API for the table, results and scorers, and the public Fantasy Premier League API for red cards. The awards nobody publishes data for are entered through a GitHub issue form.
 - **Zero cost to run.** A GitHub Actions schedule rescores every 15 minutes during kick-off windows and publishes a static site to GitHub Pages. The API token never reaches the browser.
-- **Tested.** There are 242 unit tests (Python `unittest`). The spec's worked examples are encoded as tests, and failures in every external dependency are mocked.
+- **Tested.** There are 293 unit tests (Python `unittest`). The spec's worked examples are encoded as tests, and failures in every external dependency are mocked.
 
 ## Quick start
 
@@ -40,7 +42,7 @@ python -m http.server -d site 8000 # open http://localhost:8000
 
 | Task | How |
 | --- | --- |
-| Record a hand-entry award (PFA Player, first sacking, red cards, final-day relegation) | Edit `data/manual_awards.json`: set `leaders`, `settled` once it's final, and `from_gameweek` to the gameweek it happened in. Any spelling in `data/aliases.json` works. |
+| Record a hand-entry award (PFA Player, first sacking, final-day relegation, or overriding red cards) | **Issues → New issue → Hand-entry award**. Any spelling in `data/aliases.json` works; a typo gets a reply suggesting the closest name and nothing is saved. Ties: separate names with commas. Type `none` to clear an award. Only the repo owner and collaborators can save; the issue closes itself once saved and the site updates straight away. (Editing `data/manual_awards.json` directly also works.) |
 | Record a points deduction | Add `{"club", "points": -6, "from_gameweek", "reason"}` to `data/adjustments.json`. Earlier gameweeks stay as they were. |
 | Change someone's display name or initials | Edit `data/people.json` |
 | Re-import the spreadsheet | `plpredict import-sheet predictions.xlsx`. Unknown names are listed with a suggested match; confirm them in `data/aliases.json`. |
@@ -56,6 +58,8 @@ flowchart LR
     preds --> load
     hist[(data/history.json<br/>scorer snapshots)] <--> history
     api[(football-data.org<br/>standings, matches, scorers)] --> fetch
+    fpl[(FPL API<br/>red cards)] --> fetch
+    form[Award issue form] -->|award-form workflow| cfg
 
     subgraph job [GitHub Actions: plpredict run]
         load[load inputs] --> history
@@ -63,9 +67,13 @@ flowchart LR
         history --> awards[awards.py<br/>20 category leaders per gameweek]
         awards --> scoring[scoring.py<br/>rules, bonus, stinker tiebreak]
         scoring --> out[main.py<br/>standings.json: live + every gameweek]
+        scoring --> sim[simulate.py<br/>5,000 seasons]
+        scoring --> impact[impact.py<br/>next-gameweek swings]
+        sim --> out
+        impact --> out
     end
 
-    out -->|Pages artifact| site[Static site<br/>app.js + chart.js]
+    out -->|Pages artifact| site[Static site<br/>app.js + chart.js + extras.js]
     site --> friends((Friends' phones))
 ```
 
@@ -73,12 +81,15 @@ flowchart LR
 | --- | --- |
 | `predictions.py` | Parses the spreadsheet layout (two person blocks per band, every 24 rows from row 26) and validates each person's 20 unique clubs and 20 award picks |
 | `names.py` | Normalises spellings ("Manchester Yanited", "Big Erl") through confirmed aliases and suggests matches for unknown names |
-| `fetch.py` | football-data.org v4 client: reads the rate-limit headers, retries 429/5xx, and fails fast with the API's own message on auth errors |
+| `fetch.py` | football-data.org v4 client: reads the rate-limit headers, retries 429/5xx, and fails fast with the API's own message on auth errors. Also reads red cards per club from the FPL API, where any failure just leaves that award as it was |
 | `history.py` | Assigns each match to a gameweek (postponed games count where they're played), finds finished and in-progress gameweeks, rebuilds the table after any gameweek with deductions, and keeps scorer history |
 | `awards.py` | Leader(s) of each award, live or as of a gameweek: table stats, points-pace change vs last season, a Christmas table rebuilt from results, over-90/under-25 locked once mathematically decided, and hand entries from their gameweek |
 | `scoring.py` | Pure scoring and ranking, with no I/O |
+| `simulate.py` | Rates each club's attack and defence from this season's results (shrunk towards average early on), simulates the remaining fixtures as Poisson scorelines, and scores everyone in each simulated finish |
+| `impact.py` | For each next-gameweek fixture, rescores everyone as if it ended 1-0, 1-1 or 0-1, giving whose points swing and the match of the week |
+| `award_form.py` | Reads the award issue form, resolves names, and updates `manual_awards.json` only if everything resolves |
 | `main.py` | CLI entry points; checks the token's shape, writes compact output via temp file + rename, and surfaces failures as GitHub annotations |
-| `site/` | Vanilla HTML/CSS/JS with no build step; the bump chart is hand-drawn SVG; reads only `standings.json` |
+| `site/` | Vanilla HTML/CSS/JS with no build step; the bump chart is hand-drawn SVG; recaps, head to head and gameweek winners are worked out in the browser from `standings.json`, the only file it reads |
 
 Design decisions:
 
@@ -87,6 +98,8 @@ Design decisions:
 - **Picks are normalised once.** Every club, player and answer spelling maps to one canonical value at import time, and the import fails loudly on anything unmapped. A typo can't silently cost someone points.
 - **A failed run never deploys.** The last good standings stay live, and GitHub emails the failure.
 - **Standings are published as a Pages artifact, not committed.** This keeps about 50 automated commits a day out of the history.
+- **Forecasts hold what can't be simulated.** Golden Boot, Top Assister and red cards are kept with today's leaders, and hand entries count as entered. The random seed comes from the results so far, so odds only move when a result does.
+- **Recaps are shared, not posted.** WhatsApp has no supported way for a bot to post into an existing group, so each recap has a Share button that opens WhatsApp with the text filled in.
 - **Colour is never the only identity.** Each person's colour comes from a palette validated for colour-blind separation on the dark background. Because nine lines can't all be separated where they cross, every line also ends in the person's initials and name.
 
 ## Scrum & methodology
@@ -130,6 +143,20 @@ The work followed a spec-first, small-increment process. Suhul Kebede acted as p
    | 15 | Ranking chart | `feat(web): add the rank-by-gameweek bump chart` |
    | 16 | Update the README | `docs: update README for v2` |
 
+   **v2.1: award races (PRs #5, #6).** Each award shows its leader's value and a top-3 race with the pickers under each entry, and the PL table tints the top 5 and bottom 3. Two fixes followed: discarding scorer backfill the API had silently ignored, and counting in-play matches in "Table updated".
+
+   **v3: forecasts and extras**
+
+   | # | Task | Commit |
+   | --- | --- | --- |
+   | 17 | Season simulation | `feat(simulate): simulate the rest of the season for win probabilities`, `fix(simulate): apply every points deduction in simulated tables` |
+   | 18 | Fixture swings | `feat(impact): work out whose points swing with each upcoming result` |
+   | 19 | Red cards from FPL | `feat(fetch): make Most Red Cards automatic from the FPL API` |
+   | 20 | Pipeline output | `feat(main): publish win probabilities, next-gameweek swings and red cards` |
+   | 21 | Odds, This week, Recaps and Head to head pages | `feat(web): add odds, this week, recaps and head-to-head pages` |
+   | 22 | Award issue form | `feat(awards): add a GitHub issue form for hand-entry awards` |
+   | 23 | Update the README | `docs: update README for v3` |
+
 4. **Definition of done.** For each task:
    - explicit error handling with specific exception types
    - standard-library logging rather than prints
@@ -137,13 +164,16 @@ The work followed a spec-first, small-increment process. Suhul Kebede acted as p
    - [Conventional Commits](https://www.conventionalcommits.org/) messages
 5. **Verification.**
    - The real spreadsheet was parsed end to end, and every non-exact name mapping was confirmed by Suhul.
-   - The v2 site was built against a nine-gameweek demo and checked in a headless browser at phone and desktop widths, including chart taps, gameweek navigation and fallbacks.
+   - The v2 and v3 sites were built against a nine-gameweek demo and checked in a headless browser at phone and desktop widths, including chart taps, gameweek navigation, the odds toggle, share links and fallbacks, with no page errors and no sideways scrolling on a phone.
+   - The simulation was checked for probabilities summing to 100%, for deductions applying in every simulated table, and for repeatable results from the same inputs.
 
 ## Data notes
 
 - Last season's points and this season's club list come from the spreadsheet (A3:B22 and C3:C22). The promoted clubs are inferred as Coventry City, Hull City and Ipswich Town.
 - A gameweek's "window" is its fixtures within 4 days of the median kick-off. Only a match played outside its own window moves to the nearest other gameweek, so a Monday game next to a Tuesday round stays put.
 - Golden Boot and Top Assister history comes from snapshots of the live scorers list, taken between gameweeks (when it equals the totals through the last finished gameweek). The API's `matchday` filter on scorers turned out to be ignored: it returns today's totals for any gameweek. The tracker detects this (more goals listed than had been scored by then) and discards those results, so gameweeks before snapshots began show these two awards as "not recorded".
-- Red cards and bookings aren't on football-data.org's free tier, so "Club with Most Red Cards" is a hand entry.
+- Red cards aren't on football-data.org's free tier, so "Club with Most Red Cards" sums each club's players' red cards from the FPL API. That only gives today's totals, so past gameweeks use counts recorded as each gameweek finished. A hand entry with a winner overrides it.
+- No free source publishes odds for PFA Player or the first manager sacked, so those stay hand entries and are held as entered in the forecasts.
+- Forecasts are a simple model of this season's results, not bookmaker odds; treat them as a rough guide, especially early in the season.
 - The scorers endpoint ranks players by goals. The tracker requests the top 200 so that assist leaders with few goals are included.
 - The live view uses the API's own table, which already includes any points deductions. Rebuilt past tables rank by points, goal difference, then goals scored.

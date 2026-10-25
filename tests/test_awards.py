@@ -356,3 +356,32 @@ class AwardValueTests(unittest.TestCase):
     def test_hand_entries_have_no_value(self):
         self.assertIsNone(resolve()["pfa_player"].value)
         self.assertEqual(resolve()["pfa_player"].race, ())
+
+
+class RedCardAwardTests(unittest.TestCase):
+    CARDS = {"Chelsea": 4, "Everton": 4, "Leeds United": 2, "Arsenal": 1, "Fulham": 0}
+
+    def test_automatic_from_counts(self):
+        s = resolve_awards(table(), [], [], PSET, {}, test_aliases(), date(2026, 10, 25),
+                           red_cards=self.CARDS)["most_red_cards"]
+        self.assertEqual((s.leaders, s.value), (("Chelsea", "Everton"), 4))
+        self.assertEqual([(e.rank, e.name) for e in s.race],
+                         [(1, "Chelsea"), (1, "Everton"), (3, "Leeds United")])
+
+    def test_empty_hand_entry_does_not_hide_it(self):
+        from plpredict.models import AwardStatus
+        manual = {"most_red_cards": AwardStatus("most_red_cards", (), False, "hand entry pending")}
+        s = resolve_awards(table(), [], [], PSET, manual, test_aliases(), date(2026, 10, 25),
+                           red_cards=self.CARDS)["most_red_cards"]
+        self.assertEqual(s.leaders, ("Chelsea", "Everton"))
+
+    def test_filled_hand_entry_overrides(self):
+        from plpredict.models import AwardStatus
+        manual = {"most_red_cards": AwardStatus("most_red_cards", ("Leeds United",), True)}
+        s = resolve_awards(table(), [], [], PSET, manual, test_aliases(), date(2026, 10, 25),
+                           red_cards=self.CARDS)["most_red_cards"]
+        self.assertEqual(s.leaders, ("Leeds United",))
+
+    def test_no_counts_falls_back_to_hand_entry(self):
+        s = resolve_awards(table(), [], [], PSET, {}, test_aliases(), date(2026, 10, 25))["most_red_cards"]
+        self.assertEqual((s.leaders, s.note), ((), "hand entry pending"))

@@ -242,3 +242,46 @@ def fetch_scorers(client: Client, limit: int = 200, matchday: int | None = None)
         raise ApiError(f"Unexpected scorers response shape: {exc!r}") from exc
     log.info("Fetched %d scorers%s", len(scorers), f" for matchday {matchday}" if matchday else "")
     return scorers
+
+
+FPL_URL = "https://fantasy.premierleague.com/api/bootstrap-static/"
+FPL_HEADERS = {"User-Agent": "Mozilla/5.0 (plpredict tracker)"}
+
+
+def fetch_fpl_red_cards(names: NameResolver, session: requests.Session | None = None) -> dict[str, int] | None:
+    """Red cards per club, summed from the Fantasy Premier League API's player list.
+
+    The FPL API is unofficial, so any failure (network, shape, unknown club
+    name) is logged and returns None: Most Red Cards then falls back to hand
+    entry instead of breaking the run.
+    """
+    session = session or requests.Session()
+    try:
+        resp = session.get(FPL_URL, headers=FPL_HEADERS, timeout=TIMEOUT_S)
+        if resp.status_code != 200:
+            log.warning("FPL API returned HTTP %s; red cards stay as hand entry", resp.status_code)
+            return None
+        body = resp.json()
+        teams = {t["id"]: t["name"] for t in body["teams"]}
+        raw: dict[str, int] = {}
+        for p in body["elements"]:
+            cards = p.get("red_cards") or 0
+            if isinstance(cards, bool) or not isinstance(cards, int) or cards < 0:
+                raise TypeError(f"red_cards is {cards!r}")
+            name = teams[p["team"]]
+            raw[name] = raw.get(name, 0) + cards
+    except (requests.ConnectionError, requests.Timeout) as exc:
+        log.warning("FPL API unreachable (%s); red cards stay as hand entry", exc)
+        return None
+    except (ValueError, KeyError, TypeError) as exc:
+        log.warning("Unexpected FPL API response (%r); red cards stay as hand entry", exc)
+        return None
+    counts = {}
+    for team, cards in raw.items():
+        club = names.club(team, required=False)
+        if club is None:
+            log.warning("FPL club %r not in this season's list; red cards stay as hand entry", team)
+            return None
+        counts[club] = counts.get(club, 0) + cards
+    log.info("Fetched red cards for %d clubs from FPL (%d in total)", len(counts), sum(counts.values()))
+    return counts

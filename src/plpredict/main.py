@@ -19,7 +19,15 @@ from datetime import date, datetime, timezone
 from pathlib import Path
 
 from .awards import load_manual_awards, resolve_awards
-from .fetch import ApiError, Client, Match, fetch_matches, fetch_scorers, fetch_table
+from .fetch import (
+    ApiError,
+    Client,
+    Match,
+    fetch_fpl_red_cards,
+    fetch_matches,
+    fetch_scorers,
+    fetch_table,
+)
 from .history import (
     STARTED,
     HistoryError,
@@ -30,12 +38,15 @@ from .history import (
     live_gameweek,
     load_adjustments,
     load_history,
+    record_red_cards,
     record_snapshot,
+    red_cards_through,
     save_history,
     scorers_through,
     table_after,
     validate_backfill,
 )
+from .impact import fixture_swings
 from .logging_config import configure_logging
 from .models import AWARD_CATEGORIES, PredictionSet
 from .names import NameResolver, UnknownNameError, load_aliases
@@ -47,10 +58,12 @@ from .predictions import (
     save_predictions,
 )
 from .scoring import InvalidTableError, score_all
+from .simulate import SimulationError, simulate_season
 
 log = logging.getLogger(__name__)
 
 TOKEN_ENV = "FOOTBALL_DATA_TOKEN"
+DEFAULT_SIMULATIONS = 5000
 
 
 def _entry(gameweek: int | None, table, awards, scores) -> dict:
@@ -102,6 +115,7 @@ def build_standings(
     table_updated_at: str | None,
     table_updated_source: str,
     people: dict,
+    forecast: dict | None = None,
 ) -> dict:
     """Everything the static site needs, as one JSON-ready dict.
 
@@ -122,6 +136,8 @@ def build_standings(
         "awards": live["awards"],
         "scores": live["scores"],
         "people": {p.person: people.get(p.person, {}) for p in pset.predictions},
+        **(forecast or {"simulations": 0, "odds": {}, "club_odds": {}, "next_gameweek": None,
+                        "next_fixtures": []}),
         "predictions": {
             p.person: {"order": list(p.order),
                        "awards": {k: asdict(v) for k, v in p.awards.items()}}
@@ -154,6 +170,8 @@ def run(
     client: Client,
     today: date | None = None,
     now: datetime | None = None,
+    simulations: int = DEFAULT_SIMULATIONS,
+    fpl_session=None,
 ) -> dict:
     """One scheduled run. Leaves the previous output untouched on any failure.
 
@@ -173,12 +191,14 @@ def run(
     table = fetch_table(client, names)
     matches = fetch_matches(client, names)
     scorers = fetch_scorers(client)
+    red_cards = fetch_fpl_red_cards(names, session=fpl_session)
 
     assigned = assign_gameweeks(matches)
     final = final_gameweeks(assigned)
     current = live_gameweek(assigned, final)
     validate_backfill(history, assigned)
     record_snapshot(history, scorers, final, current)
+    record_red_cards(history, red_cards, final, current)
     backfill_scorers(client, history, assigned, final,
                      fetch=lambda c, gw: fetch_scorers(c, matchday=gw))
 
@@ -187,22 +207,51 @@ def run(
         gw_table = table_after(assigned, gw, pset.season_clubs, adjustments)
         gw_matches = [m for g, m in assigned if g <= gw]
         gw_awards = resolve_awards(gw_table, gw_matches, scorers_through(history, gw), pset,
-                                   manual, aliases, gameweek_end(assigned, gw).date(), gameweek=gw)
+                                   manual, aliases, gameweek_end(assigned, gw).date(), gameweek=gw,
+                                   red_cards=red_cards_through(history, gw))
         gw_scores = score_all(pset.predictions, gw_table, pset.season_clubs, gw_awards)
         gameweeks.append(_entry(gw, gw_table, gw_awards, gw_scores))
 
-    awards = resolve_awards(table, matches, scorers, pset, manual, aliases, today)
+    awards = resolve_awards(table, matches, scorers, pset, manual, aliases, today, red_cards=red_cards)
     scores = score_all(pset.predictions, table, pset.season_clubs, awards)
+    forecast = build_forecast(pset, matches, assigned, final, current, scorers, awards, manual,
+                              aliases, adjustments, today, simulations)
     live = {**_entry(current if current else (final[-1] if final else None), table, awards, scores),
             "in_progress": current is not None}
 
     updated_at, source = table_updated(matches)
-    standings = build_standings(pset, live, gameweeks, now, updated_at, source, people)
+    standings = build_standings(pset, live, gameweeks, now, updated_at, source, people, forecast)
     write_json_atomic(standings, out_path)
     save_history(history, data_dir / "history.json")
     log.info("Wrote %s: %d finished gameweek(s), live gameweek %s, leader %s (%d pts)",
              out_path, len(final), live["gameweek"], scores[0].person, scores[0].total)
     return standings
+
+
+def build_forecast(pset, matches, assigned, final, current, scorers, awards, manual, aliases,
+                   adjustments, today, simulations) -> dict | None:
+    """Win probabilities and next-gameweek swings. A failure here is logged and
+    leaves the forecast out rather than stopping the standings from updating."""
+    try:
+        sim = simulate_season(pset, matches, awards, manual, aliases, adjustments, n=simulations)
+        next_gw = current or ((final[-1] + 1) if final else 1)
+        fixtures = [m for gw, m in assigned if gw == next_gw and not m.finished]
+        impacts = fixture_swings(pset, matches, fixtures, scorers, manual, aliases, adjustments, today)
+    except (SimulationError, ValueError) as exc:
+        log.error("Forecast skipped: %s", exc)
+        return None
+    biggest = max(impacts, key=lambda i: i.size, default=None)
+    return {
+        "simulations": sim.n,
+        "odds": sim.people,
+        "club_odds": sim.clubs,
+        "next_gameweek": next_gw if fixtures else None,
+        "next_fixtures": [{
+            "home": i.home, "away": i.away, "kickoff": i.kickoff.isoformat(timespec="minutes"),
+            **sim.fixtures.get((i.home, i.away), {}),
+            "swings": i.swings, "match_of_the_week": i is biggest and i.size > 0,
+        } for i in impacts],
+    }
 
 
 def import_sheet(xlsx: Path, data_dir: Path) -> PredictionSet:
@@ -260,8 +309,13 @@ def cli(argv: list[str] | None = None) -> int:
     sub = parser.add_subparsers(dest="command", required=True)
     run_p = sub.add_parser("run", help="fetch live data, score everyone, write standings")
     run_p.add_argument("--out", type=Path, default=Path("site/standings.json"))
+    run_p.add_argument("--simulations", type=int, default=DEFAULT_SIMULATIONS,
+                       help="seasons to simulate for win probabilities (default %(default)s)")
     imp = sub.add_parser("import-sheet", help="re-import the predictions spreadsheet")
     imp.add_argument("xlsx", type=Path)
+    form = sub.add_parser("apply-award", help="apply a hand-entry award from the GitHub issue form")
+    form.add_argument("--body-file", type=Path, required=True, help="the issue body (markdown)")
+    form.add_argument("--reply-file", type=Path, required=True, help="where to write the reply")
     args = parser.parse_args(argv)
 
     try:
@@ -273,6 +327,11 @@ def cli(argv: list[str] | None = None) -> int:
         if args.command == "import-sheet":
             import_sheet(args.xlsx, args.data_dir)
             return 0
+        if args.command == "apply-award":
+            from plpredict.award_form import run_form
+            saved, reply = run_form(args.body_file.read_text(encoding="utf-8"), args.data_dir)
+            args.reply_file.write_text(reply + "\n", encoding="utf-8")
+            return 0 if saved else 3
         raw = os.environ.get(TOKEN_ENV, "")
         if not raw.strip():
             log.error("Set %s to your football-data.org API token", TOKEN_ENV)
@@ -285,7 +344,8 @@ def cli(argv: list[str] | None = None) -> int:
             return 2
         log.info("Using %s (%s)", TOKEN_ENV, desc)
         github_annotation(TOKEN_ENV, desc, level="notice")
-        run(data_dir=args.data_dir, out_path=args.out, client=Client(token))
+        run(data_dir=args.data_dir, out_path=args.out, client=Client(token),
+            simulations=args.simulations)
         return 0
     except (UnknownNameError, InvalidPredictionError, InvalidTableError, ApiError,
             HistoryError, FileNotFoundError, ValueError) as exc:
