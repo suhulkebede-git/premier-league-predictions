@@ -52,9 +52,29 @@ class ClientTests(unittest.TestCase):
 
     def test_auth_error_not_retried(self):
         c, session, _ = client(FakeResponse(403, reason="Forbidden"))
-        with self.assertRaisesRegex(ApiError, "check the API token"):
+        with self.assertRaisesRegex(ApiError, "check the FOOTBALL_DATA_TOKEN secret"):
             c.get("/x")
         self.assertEqual(len(session.calls), 1)
+
+    def test_bad_request_shows_api_message(self):
+        body = {"message": "Your API token is invalid.", "errorCode": 400}
+        c, session, _ = client(FakeResponse(400, body=body, reason=""))
+        with self.assertRaises(ApiError) as ctx:
+            c.get("/competitions/PL/standings")
+        self.assertEqual(str(ctx.exception),
+                         "/competitions/PL/standings: HTTP 400: Your API token is invalid. "
+                         "(check the FOOTBALL_DATA_TOKEN secret)")
+        self.assertEqual(len(session.calls), 1)
+
+    def test_error_detail_falls_back_to_text(self):
+        c, _, _ = client(FakeResponse(404, bad_json=True, reason="Not Found", text="no such page"))
+        with self.assertRaisesRegex(ApiError, "HTTP 404: no such page$"):
+            c.get("/x")
+
+    def test_error_detail_falls_back_to_reason(self):
+        c, _, _ = client(FakeResponse(404, bad_json=True, reason="Not Found"))
+        with self.assertRaisesRegex(ApiError, "HTTP 404: Not Found$"):
+            c.get("/x")
 
     def test_bad_json(self):
         c, _, _ = client(FakeResponse(bad_json=True))

@@ -93,9 +93,12 @@ class Client:
                     log.debug("GET %s ok (attempt %d)", path, attempt)
                     return body
                 if resp.status_code not in RETRY_STATUSES:
+                    detail = _error_detail(resp)
                     raise ApiError(
-                        f"{path}: HTTP {resp.status_code} {resp.reason}"
-                        + (" (check the API token)" if resp.status_code in (401, 403) else "")
+                        f"{path}: HTTP {resp.status_code}"
+                        + (f": {detail}" if detail else "")
+                        + (" (check the FOOTBALL_DATA_TOKEN secret)"
+                           if resp.status_code in (400, 401, 403) else "")
                     )
                 problem = f"HTTP {resp.status_code}"
             if attempt > self._retries:
@@ -104,6 +107,18 @@ class Client:
             log.warning("GET %s failed (%s); retry %d in %.0fs", path, problem, attempt, wait)
             self._sleep(wait)
         raise AssertionError("unreachable")  # pragma: no cover
+
+
+def _error_detail(resp) -> str:
+    """The API's own explanation of an error, e.g. 'Your API token is invalid.'"""
+    try:
+        body = resp.json()
+        if isinstance(body, dict) and body.get("message"):
+            return str(body["message"]).strip()
+    except ValueError:
+        pass
+    text = (getattr(resp, "text", "") or "").strip()
+    return text[:300] or (getattr(resp, "reason", "") or "").strip()
 
 
 def api_club(raw: str, names: NameResolver) -> str | None:

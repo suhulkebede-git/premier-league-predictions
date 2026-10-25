@@ -111,6 +111,19 @@ def import_sheet(xlsx: Path, data_dir: Path) -> PredictionSet:
     return pset
 
 
+def github_annotation(title: str, message: str) -> None:
+    """Surface an error on the GitHub Actions run summary (no-op elsewhere).
+
+    Uses the ::error workflow command, which must go to stdout; newlines are
+    %-encoded as the command format requires.
+    """
+    if os.environ.get("GITHUB_ACTIONS") != "true":
+        return
+    encoded = message.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+    sys.stdout.write(f"::error title={title}::{encoded}\n")
+    sys.stdout.flush()
+
+
 def cli(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="plpredict", description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -141,6 +154,7 @@ def cli(argv: list[str] | None = None) -> int:
     except (UnknownNameError, InvalidPredictionError, InvalidTableError, ApiError,
             FileNotFoundError, ValueError) as exc:
         log.error("%s failed; previous output left unchanged:\n%s", args.command, exc)
+        github_annotation(f"plpredict {args.command} failed", f"{type(exc).__name__}: {exc}")
         return 1
 
 

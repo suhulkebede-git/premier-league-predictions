@@ -106,6 +106,25 @@ class CliTests(unittest.TestCase):
                 self.assertEqual(cli(["--data-dir", str(self.data), "run"]), 1)
         self.assertIn("previous output left unchanged", logs.output[0])
 
+    def test_error_becomes_github_annotation_in_actions(self):
+        env = {"FOOTBALL_DATA_TOKEN": "t", "GITHUB_ACTIONS": "true"}
+        with mock.patch.dict("os.environ", env), \
+                mock.patch("plpredict.main.run", side_effect=ApiError("HTTP 403\nForbidden 100%")), \
+                mock.patch("sys.stdout") as out:
+            with self.assertLogs("plpredict.main", "ERROR"):
+                self.assertEqual(cli(["--data-dir", str(self.data), "run"]), 1)
+        written = "".join(c.args[0] for c in out.write.call_args_list)
+        self.assertEqual(written, "::error title=plpredict run failed::"
+                                  "ApiError: HTTP 403%0AForbidden 100%25\n")
+
+    def test_no_annotation_outside_actions(self):
+        with mock.patch.dict("os.environ", {"FOOTBALL_DATA_TOKEN": "t", "GITHUB_ACTIONS": ""}), \
+                mock.patch("plpredict.main.run", side_effect=ApiError("down")), \
+                mock.patch("sys.stdout") as out:
+            with self.assertLogs("plpredict.main", "ERROR"):
+                cli(["--data-dir", str(self.data), "run"])
+        out.write.assert_not_called()
+
     def test_import_sheet(self):
         xlsx = write_sheet(Path(self.dir.name) / "p.xlsx", [("ED", list(CLUBS), None)])
         self.assertEqual(cli(["--data-dir", str(self.data), "import-sheet", str(xlsx)]), 0)
