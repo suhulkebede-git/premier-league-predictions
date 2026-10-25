@@ -39,7 +39,8 @@ class RunTests(unittest.TestCase):
     def test_writes_complete_standings(self):
         with self.assertLogs("plpredict", "INFO"):
             run(data_dir=self.data, out_path=self.out, client=self.client(*api_responses()),
-                today=date(2026, 10, 25), now=NOW)
+                today=date(2026, 10, 25), now=NOW, simulations=50,
+                fpl_session=FakeSession(FakeResponse(503)))
         data = json.loads(self.out.read_text())
         self.assertEqual(data["updated_at"], "2026-10-25T12:00:00+00:00")
         self.assertEqual(data["games_played"], 10)
@@ -63,7 +64,8 @@ class RunTests(unittest.TestCase):
         self.out.write_text('{"previous": true}')
         with self.assertRaises(ApiError):
             run(data_dir=self.data, out_path=self.out,
-                client=self.client(FakeResponse(500, reason="Down")), now=NOW)
+                client=self.client(FakeResponse(500, reason="Down")), now=NOW, simulations=50,
+                fpl_session=FakeSession(FakeResponse(503)))
         self.assertEqual(json.loads(self.out.read_text()), {"previous": True})
 
 
@@ -250,7 +252,8 @@ class GameweekRunTests(unittest.TestCase):
         client = Client("t", session=session, retries=0, sleep=lambda s: None)
         with self.assertLogs("plpredict", "INFO"):
             run(data_dir=self.data, out_path=self.out, client=client,
-                today=date(2026, 9, 1), now=NOW)
+                today=date(2026, 9, 1), now=NOW, simulations=50,
+                fpl_session=FakeSession(FakeResponse(503)))
         return json.loads(self.out.read_text()), session  # what the site reads
 
     def test_finished_gameweeks_live_gameweek_and_backfill(self):
@@ -348,3 +351,57 @@ class TableUpdatedInPlayTests(unittest.TestCase):
                       None, None, matchday=10, last_updated=datetime(2026, 10, 26, 9, tzinfo=timezone.utc))
         self.assertEqual(table_updated([done, live, later]),
                          ("2026-10-25T17:02:00+00:00", "api_last_updated"))
+
+
+from tests.test_fetch import fpl_body  # noqa: E402
+
+
+class ForecastRunTests(unittest.TestCase):
+    def setUp(self):
+        self.dir = tempfile.TemporaryDirectory()
+        self.data = Path(self.dir.name) / "data"
+        shutil.copytree(REPO_DATA, self.data)
+        (self.data / "history.json").write_text('{"backfill": {}, "backfill_mode": "ignored", "snapshots": {}}\n')
+        self.out = Path(self.dir.name) / "standings.json"
+
+    def tearDown(self):
+        self.dir.cleanup()
+
+    def run_with(self, fpl, **kw):
+        matches = gameweek_matches(1) + gameweek_matches(2, finished=0)
+        session = FakeSession(FakeResponse(body=standings_body()), FakeResponse(body={"matches": matches}),
+                              FakeResponse(body=scorers_body(("Erling Haaland", 2, 1))))
+        client = Client("t", session=session, retries=0, sleep=lambda s: None)
+        with self.assertLogs("plpredict", "INFO"):
+            run(data_dir=self.data, out_path=self.out, client=client, today=date(2026, 8, 20), now=NOW,
+                simulations=40, fpl_session=FakeSession(fpl), **kw)
+        return json.loads(self.out.read_text())
+
+    def test_odds_fixtures_and_red_cards(self):
+        cards = [(c, 3 if c == "Chelsea" else 0) for c in CLUBS]
+        data = self.run_with(FakeResponse(body=fpl_body(cards)))
+        self.assertEqual(data["simulations"], 40)
+        self.assertEqual(set(data["odds"]), set(data["predictions"]))
+        self.assertAlmostEqual(sum(o["win"] for o in data["odds"].values()), 1, places=2)
+        self.assertEqual(len(data["club_odds"]), 20)
+        self.assertEqual(data["next_gameweek"], 2)
+        self.assertEqual(len(data["next_fixtures"]), 10)
+        f = data["next_fixtures"][0]
+        self.assertEqual(set(f["swings"]), {"home", "draw", "away"})
+        self.assertAlmostEqual(f["p_home"] + f["p_draw"] + f["p_away"], 1, places=2)
+        self.assertLessEqual(sum(x["match_of_the_week"] for x in data["next_fixtures"]), 1)
+        reds = next(a for a in data["awards"] if a["key"] == "most_red_cards")
+        self.assertEqual((reds["leaders"], reds["value"]), (["Chelsea"], 3))
+        history = json.loads((self.data / "history.json").read_text())
+        self.assertEqual(history["red_cards"]["1"]["Chelsea"], 3)
+
+    def test_fpl_down_keeps_hand_entry(self):
+        data = self.run_with(FakeResponse(503))
+        reds = next(a for a in data["awards"] if a["key"] == "most_red_cards")
+        self.assertEqual((reds["leaders"], reds["note"]), ([], "hand entry pending"))
+
+    def test_forecast_failure_still_publishes_standings(self):
+        with mock.patch("plpredict.main.simulate_season", side_effect=ValueError("boom")):
+            data = self.run_with(FakeResponse(503))
+        self.assertEqual((data["simulations"], data["odds"], data["next_fixtures"]), (0, {}, []))
+        self.assertEqual(len(data["scores"]), 9)
