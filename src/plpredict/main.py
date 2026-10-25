@@ -21,6 +21,7 @@ from pathlib import Path
 from .awards import load_manual_awards, resolve_awards
 from .fetch import ApiError, Client, Match, fetch_matches, fetch_scorers, fetch_table
 from .history import (
+    STARTED,
     HistoryError,
     assign_gameweeks,
     backfill_scorers,
@@ -63,10 +64,12 @@ def _entry(gameweek: int | None, table, awards, scores) -> dict:
 
 
 def table_updated(matches: list[Match]) -> tuple[str | None, str]:
-    """When the results last changed: the API's lastUpdated on finished matches,
-    else the latest finished kick-off. Returns (ISO time or None, source)."""
+    """When the table last changed: the API's lastUpdated on finished or
+    in-play matches (the live table moves with games in progress), else the
+    latest finished kick-off. Returns (ISO time or None, source)."""
     done = [m for m in matches if m.finished]
-    stamps = [m.last_updated for m in done if m.last_updated is not None]
+    started = [m for m in matches if m.status in STARTED]
+    stamps = [m.last_updated for m in started if m.last_updated is not None]
     if stamps:
         return max(stamps).isoformat(timespec="seconds"), "api_last_updated"
     if done:
