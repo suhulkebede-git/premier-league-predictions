@@ -336,3 +336,15 @@ class LoadPeopleTests(unittest.TestCase):
             self.path.write_text(text)
             with self.assertRaises(ValueError):
                 load_people(self.path)
+
+
+class TableUpdatedInPlayTests(unittest.TestCase):
+    def test_in_play_match_counts(self):
+        done = Match(datetime(2026, 10, 25, 14, tzinfo=timezone.utc), "FINISHED", "Arsenal", "Chelsea",
+                     1, 0, matchday=9, last_updated=datetime(2026, 10, 25, 16, tzinfo=timezone.utc))
+        live = Match(datetime(2026, 10, 25, 16, 30, tzinfo=timezone.utc), "IN_PLAY", "Everton", "Fulham",
+                     0, 0, matchday=9, last_updated=datetime(2026, 10, 25, 17, 2, tzinfo=timezone.utc))
+        later = Match(datetime(2026, 11, 1, 15, tzinfo=timezone.utc), "TIMED", "Leeds United", "Hull City",
+                      None, None, matchday=10, last_updated=datetime(2026, 10, 26, 9, tzinfo=timezone.utc))
+        self.assertEqual(table_updated([done, live, later]),
+                         ("2026-10-25T17:02:00+00:00", "api_last_updated"))

@@ -356,3 +356,63 @@ class BackfillTests(unittest.TestCase):
 
     def test_unrecorded_gameweek(self):
         self.assertIsNone(scorers_through(fresh(), 4))
+
+
+from plpredict.history import goals_through, validate_backfill  # noqa: E402
+
+
+class IgnoredFilterTests(unittest.TestCase):
+    """football-data.org ignores scorers?matchday=N and returns today's totals."""
+
+    TODAY = [Scorer("Erling Haaland", 9, 1), Scorer("Alexander Isak", 6, 0)]  # 15 goals listed
+
+    def setUp(self):
+        # Gameweeks of 3 goals each: 3, 6, 9 scored through GW 1-3.
+        self.assigned = [(gw, m("Arsenal", "Chelsea", 2, 1, gw)) for gw in (1, 2, 3)]
+
+    def test_goals_through(self):
+        self.assertEqual([goals_through(self.assigned, g) for g in (1, 2, 3)], [3, 6, 9])
+
+    def test_detected_on_first_call_and_backfill_stops(self):
+        h = fresh()
+        calls = []
+
+        def fetch(client, gw):
+            calls.append(gw)
+            return self.TODAY
+
+        with self.assertLogs("plpredict.history", "WARNING") as logs:
+            backfill_scorers(None, h, self.assigned, [1, 2, 3], fetch)
+        self.assertEqual(calls, [1])
+        self.assertEqual((h["backfill_mode"], h["backfill"]), ("ignored", {}))
+        self.assertIn("ignores the matchday filter", logs.output[0])
+        self.assertEqual(backfill_scorers(None, h, self.assigned, [1, 2, 3], fetch), 0)
+        self.assertEqual(calls, [1])  # never asks again
+        self.assertIsNone(scorers_through(h, 2))
+
+    def test_existing_bad_history_is_repaired(self):
+        # What the first live runs saved: today's list stored for every gameweek.
+        rows = [{"player": s.player, "goals": s.goals, "assists": s.assists} for s in self.TODAY]
+        h = {"snapshots": {}, "backfill": {"1": rows, "2": rows, "3": rows}, "backfill_mode": "cumulative"}
+        with self.assertLogs("plpredict.history", "WARNING"):
+            self.assertTrue(validate_backfill(h, self.assigned))
+        self.assertEqual((h["backfill_mode"], h["backfill"]), ("ignored", {}))
+        self.assertIsNone(scorers_through(h, 1))
+        self.assertFalse(validate_backfill(h, self.assigned))
+
+    def test_valid_history_left_alone(self):
+        h = {"snapshots": {}, "backfill": {"1": [{"player": "Erling Haaland", "goals": 2, "assists": 0}]},
+             "backfill_mode": None}
+        self.assertFalse(validate_backfill(h, self.assigned))
+        self.assertIn("1", h["backfill"])
+
+    def test_snapshots_still_used_when_filter_ignored(self):
+        h = {"snapshots": {"3": [{"player": "Erling Haaland", "goals": 5, "assists": 0}]},
+             "backfill": {}, "backfill_mode": "ignored"}
+        self.assertEqual(scorers_through(h, 3), [Scorer("Erling Haaland", 5, 0)])
+
+    def test_ignored_mode_loads(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = Path(d) / "history.json"
+            path.write_text(json.dumps({"snapshots": {}, "backfill": {}, "backfill_mode": "ignored"}))
+            self.assertEqual(load_history(path)["backfill_mode"], "ignored")
