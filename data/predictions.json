@@ -1,0 +1,1193 @@
+{
+  "season_clubs": [
+    "AFC Bournemouth",
+    "Arsenal",
+    "Aston Villa",
+    "Brentford",
+    "Brighton & Hove Albion",
+    "Chelsea",
+    "Coventry City",
+    "Crystal Palace",
+    "Everton",
+    "Fulham",
+    "Hull City",
+    "Ipswich Town",
+    "Leeds United",
+    "Liverpool",
+    "Manchester City",
+    "Manchester United",
+    "Newcastle United",
+    "Nottingham Forest",
+    "Sunderland",
+    "Tottenham Hotspur"
+  ],
+  "promoted_clubs": [
+    "Coventry City",
+    "Hull City",
+    "Ipswich Town"
+  ],
+  "last_season_points": {
+    "Arsenal": 85,
+    "Manchester City": 78,
+    "Manchester United": 71,
+    "Aston Villa": 65,
+    "Liverpool": 60,
+    "AFC Bournemouth": 57,
+    "Sunderland": 54,
+    "Brighton & Hove Albion": 53,
+    "Brentford": 53,
+    "Chelsea": 52,
+    "Fulham": 52,
+    "Newcastle United": 49,
+    "Everton": 49,
+    "Leeds United": 47,
+    "Crystal Palace": 45,
+    "Nottingham Forest": 44,
+    "Tottenham Hotspur": 41
+  },
+  "predictions": [
+    {
+      "person": "ED",
+      "order": [
+        "Arsenal",
+        "Chelsea",
+        "Manchester United",
+        "Liverpool",
+        "Manchester City",
+        "Tottenham Hotspur",
+        "Aston Villa",
+        "Nottingham Forest",
+        "Brentford",
+        "AFC Bournemouth",
+        "Everton",
+        "Brighton & Hove Albion",
+        "Newcastle United",
+        "Leeds United",
+        "Crystal Palace",
+        "Sunderland",
+        "Fulham",
+        "Hull City",
+        "Ipswich Town",
+        "Coventry City"
+      ],
+      "awards": {
+        "pfa_player": {
+          "raw": "Bruno Fernandes",
+          "value": "Bruno Fernandes",
+          "alt": null
+        },
+        "first_sacked_manager": {
+          "raw": "Maresca",
+          "value": "Enzo Maresca",
+          "alt": null
+        },
+        "title_margin": {
+          "raw": "8.0",
+          "value": 8,
+          "alt": null
+        },
+        "biggest_increase": {
+          "raw": "Tottenham",
+          "value": "Tottenham Hotspur",
+          "alt": null
+        },
+        "biggest_dropoff": {
+          "raw": "Manchester City",
+          "value": "Manchester City",
+          "alt": null
+        },
+        "most_red_cards": {
+          "raw": "Newcastle",
+          "value": "Newcastle United",
+          "alt": null
+        },
+        "top_assister": {
+          "raw": "Brunooooo",
+          "value": "Bruno Fernandes",
+          "alt": null
+        },
+        "most_clean_sheets": {
+          "raw": "Raya",
+          "value": "Arsenal",
+          "alt": null
+        },
+        "most_draws": {
+          "raw": "Bournemouth",
+          "value": "AFC Bournemouth",
+          "alt": null
+        },
+        "highest_promoted": {
+          "raw": "Hull",
+          "value": "Hull City",
+          "alt": null
+        },
+        "golden_boot": {
+          "raw": "Haaland",
+          "value": "Erling Haaland",
+          "alt": null
+        },
+        "top_at_christmas": {
+          "raw": "Arsenal",
+          "value": "Arsenal",
+          "alt": null
+        },
+        "bottom_at_christmas": {
+          "raw": "Ipswich",
+          "value": "Ipswich Town",
+          "alt": null
+        },
+        "fewest_goals": {
+          "raw": "Coventry",
+          "value": "Coventry City",
+          "alt": null
+        },
+        "worst_defense": {
+          "raw": "Coventry",
+          "value": "Coventry City",
+          "alt": null
+        },
+        "most_goals": {
+          "raw": "Arsenal",
+          "value": "Arsenal",
+          "alt": null
+        },
+        "best_defense": {
+          "raw": "Arsenal",
+          "value": "Arsenal",
+          "alt": null
+        },
+        "relegation_final_day": {
+          "raw": "Hell nah",
+          "value": false,
+          "alt": null
+        },
+        "any_under_25": {
+          "raw": "Fuck no",
+          "value": false,
+          "alt": null
+        },
+        "any_over_90": {
+          "raw": "Yes",
+          "value": true,
+          "alt": null
+        }
+      }
+    },
+    {
+      "person": "LUKE",
+      "order": [
+        "Arsenal",
+        "Manchester City",
+        "Chelsea",
+        "Manchester United",
+        "Liverpool",
+        "Tottenham Hotspur",
+        "Brentford",
+        "Aston Villa",
+        "Nottingham Forest",
+        "Leeds United",
+        "Brighton & Hove Albion",
+        "Everton",
+        "AFC Bournemouth",
+        "Newcastle United",
+        "Sunderland",
+        "Crystal Palace",
+        "Fulham",
+        "Coventry City",
+        "Ipswich Town",
+        "Hull City"
+      ],
+      "awards": {
+        "pfa_player": {
+          "raw": "Bruno F",
+          "value": "Bruno Fernandes",
+          "alt": null
+        },
+        "first_sacked_manager": {
+          "raw": "Arbeloa",
+          "value": "Alvaro Arbeloa",
+          "alt": null
+        },
+        "title_margin": {
+          "raw": "7.0",
+          "value": 7,
+          "alt": null
+        },
+        "biggest_increase": {
+          "raw": "Spurs",
+          "value": "Tottenham Hotspur",
+          "alt": null
+        },
+        "biggest_dropoff": {
+          "raw": "Sunderland",
+          "value": "Sunderland",
+          "alt": null
+        },
+        "most_red_cards": {
+          "raw": "Crystal Palace",
+          "value": "Crystal Palace",
+          "alt": null
+        },
+        "top_assister": {
+          "raw": "Cherki",
+          "value": "Rayan Cherki",
+          "alt": null
+        },
+        "most_clean_sheets": {
+          "raw": "Raya",
+          "value": "Arsenal",
+          "alt": null
+        },
+        "most_draws": {
+          "raw": "Leeds",
+          "value": "Leeds United",
+          "alt": null
+        },
+        "highest_promoted": {
+          "raw": "Coventry",
+          "value": "Coventry City",
+          "alt": null
+        },
+        "golden_boot": {
+          "raw": "Big Erl",
+          "value": "Erling Haaland",
+          "alt": null
+        },
+        "top_at_christmas": {
+          "raw": "Arsenal",
+          "value": "Arsenal",
+          "alt": null
+        },
+        "bottom_at_christmas": {
+          "raw": "Hull",
+          "value": "Hull City",
+          "alt": null
+        },
+        "fewest_goals": {
+          "raw": "Hull",
+          "value": "Hull City",
+          "alt": null
+        },
+        "worst_defense": {
+          "raw": "Hull",
+          "value": "Hull City",
+          "alt": null
+        },
+        "most_goals": {
+          "raw": "Manchester City",
+          "value": "Manchester City",
+          "alt": null
+        },
+        "best_defense": {
+          "raw": "Arsenal",
+          "value": "Arsenal",
+          "alt": null
+        },
+        "relegation_final_day": {
+          "raw": "No",
+          "value": false,
+          "alt": null
+        },
+        "any_under_25": {
+          "raw": "Yes",
+          "value": true,
+          "alt": null
+        },
+        "any_over_90": {
+          "raw": "No",
+          "value": false,
+          "alt": null
+        }
+      }
+    },
+    {
+      "person": "OREVA",
+      "order": [
+        "Arsenal",
+        "Manchester United",
+        "Chelsea",
+        "Manchester City",
+        "Tottenham Hotspur",
+        "Brentford",
+        "Liverpool",
+        "Aston Villa",
+        "Crystal Palace",
+        "Everton",
+        "Fulham",
+        "Newcastle United",
+        "Brighton & Hove Albion",
+        "AFC Bournemouth",
+        "Sunderland",
+        "Hull City",
+        "Nottingham Forest",
+        "Leeds United",
+        "Ipswich Town",
+        "Coventry City"
+      ],
+      "awards": {
+        "pfa_player": {
+          "raw": "Bruno Fernandes",
+          "value": "Bruno Fernandes",
+          "alt": null
+        },
+        "first_sacked_manager": {
+          "raw": "Marco Rose",
+          "value": "Marco Rose",
+          "alt": null
+        },
+        "title_margin": {
+          "raw": "4.0",
+          "value": 4,
+          "alt": null
+        },
+        "biggest_increase": {
+          "raw": "Tottenham",
+          "value": "Tottenham Hotspur",
+          "alt": null
+        },
+        "biggest_dropoff": {
+          "raw": "Sunderland",
+          "value": "Sunderland",
+          "alt": null
+        },
+        "most_red_cards": {
+          "raw": "Nottingham Forest",
+          "value": "Nottingham Forest",
+          "alt": null
+        },
+        "top_assister": {
+          "raw": "Bruno Fernandes",
+          "value": "Bruno Fernandes",
+          "alt": null
+        },
+        "most_clean_sheets": {
+          "raw": "Raya",
+          "value": "Arsenal",
+          "alt": null
+        },
+        "most_draws": {
+          "raw": "Tot",
+          "value": "Tottenham Hotspur",
+          "alt": null
+        },
+        "highest_promoted": {
+          "raw": "Hull City",
+          "value": "Hull City",
+          "alt": null
+        },
+        "golden_boot": {
+          "raw": "Haaland",
+          "value": "Erling Haaland",
+          "alt": null
+        },
+        "top_at_christmas": {
+          "raw": "Arsenal",
+          "value": "Arsenal",
+          "alt": null
+        },
+        "bottom_at_christmas": {
+          "raw": "Ipswich",
+          "value": "Ipswich Town",
+          "alt": null
+        },
+        "fewest_goals": {
+          "raw": "Coventry City",
+          "value": "Coventry City",
+          "alt": null
+        },
+        "worst_defense": {
+          "raw": "Coventry City",
+          "value": "Coventry City",
+          "alt": null
+        },
+        "most_goals": {
+          "raw": "Chelsea",
+          "value": "Chelsea",
+          "alt": null
+        },
+        "best_defense": {
+          "raw": "Arsenal",
+          "value": "Arsenal",
+          "alt": null
+        },
+        "relegation_final_day": {
+          "raw": "No",
+          "value": false,
+          "alt": null
+        },
+        "any_under_25": {
+          "raw": "Yes",
+          "value": true,
+          "alt": null
+        },
+        "any_over_90": {
+          "raw": "No",
+          "value": false,
+          "alt": null
+        }
+      }
+    },
+    {
+      "person": "IYIN",
+      "order": [
+        "Arsenal",
+        "Chelsea",
+        "Liverpool",
+        "Manchester United",
+        "Manchester City",
+        "Tottenham Hotspur",
+        "AFC Bournemouth",
+        "Aston Villa",
+        "Brighton & Hove Albion",
+        "Nottingham Forest",
+        "Everton",
+        "Newcastle United",
+        "Crystal Palace",
+        "Sunderland",
+        "Leeds United",
+        "Brentford",
+        "Fulham",
+        "Coventry City",
+        "Ipswich Town",
+        "Hull City"
+      ],
+      "awards": {
+        "pfa_player": {
+          "raw": "Martin Odegaard",
+          "value": "Martin Odegaard",
+          "alt": null
+        },
+        "first_sacked_manager": {
+          "raw": "O'Neil",
+          "value": "Gary O'Neil",
+          "alt": null
+        },
+        "title_margin": {
+          "raw": "6.0",
+          "value": 6,
+          "alt": null
+        },
+        "biggest_increase": {
+          "raw": "Tottenham",
+          "value": "Tottenham Hotspur",
+          "alt": null
+        },
+        "biggest_dropoff": {
+          "raw": "Brenford",
+          "value": "Brentford",
+          "alt": null
+        },
+        "most_red_cards": {
+          "raw": "Ipswich",
+          "value": "Ipswich Town",
+          "alt": null
+        },
+        "top_assister": {
+          "raw": "Martin Odegaard",
+          "value": "Martin Odegaard",
+          "alt": null
+        },
+        "most_clean_sheets": {
+          "raw": "Raya",
+          "value": "Arsenal",
+          "alt": null
+        },
+        "most_draws": {
+          "raw": "Leeds",
+          "value": "Leeds United",
+          "alt": null
+        },
+        "highest_promoted": {
+          "raw": "Coventry",
+          "value": "Coventry City",
+          "alt": null
+        },
+        "golden_boot": {
+          "raw": "Joao Pedro",
+          "value": "Joao Pedro",
+          "alt": null
+        },
+        "top_at_christmas": {
+          "raw": "Arsenal",
+          "value": "Arsenal",
+          "alt": null
+        },
+        "bottom_at_christmas": {
+          "raw": "Hull",
+          "value": "Hull City",
+          "alt": null
+        },
+        "fewest_goals": {
+          "raw": "Hull",
+          "value": "Hull City",
+          "alt": null
+        },
+        "worst_defense": {
+          "raw": "Ipswich",
+          "value": "Ipswich Town",
+          "alt": null
+        },
+        "most_goals": {
+          "raw": "Chelsea",
+          "value": "Chelsea",
+          "alt": null
+        },
+        "best_defense": {
+          "raw": "Arsenal",
+          "value": "Arsenal",
+          "alt": null
+        },
+        "relegation_final_day": {
+          "raw": "No",
+          "value": false,
+          "alt": null
+        },
+        "any_under_25": {
+          "raw": "Yes",
+          "value": true,
+          "alt": null
+        },
+        "any_over_90": {
+          "raw": "No",
+          "value": false,
+          "alt": null
+        }
+      }
+    },
+    {
+      "person": "PEDRO",
+      "order": [
+        "Chelsea",
+        "Arsenal",
+        "Manchester City",
+        "Manchester United",
+        "Aston Villa",
+        "Liverpool",
+        "Brighton & Hove Albion",
+        "Sunderland",
+        "Fulham",
+        "AFC Bournemouth",
+        "Brentford",
+        "Everton",
+        "Crystal Palace",
+        "Tottenham Hotspur",
+        "Coventry City",
+        "Newcastle United",
+        "Hull City",
+        "Ipswich Town",
+        "Leeds United",
+        "Nottingham Forest"
+      ],
+      "awards": {
+        "pfa_player": {
+          "raw": "Cole Palmer",
+          "value": "Cole Palmer",
+          "alt": null
+        },
+        "first_sacked_manager": {
+          "raw": "Marco Silva",
+          "value": "Marco Silva",
+          "alt": null
+        },
+        "title_margin": {
+          "raw": "6 points",
+          "value": 6,
+          "alt": null
+        },
+        "biggest_increase": {
+          "raw": "Man U",
+          "value": "Manchester United",
+          "alt": null
+        },
+        "biggest_dropoff": {
+          "raw": "Liverpool",
+          "value": "Liverpool",
+          "alt": null
+        },
+        "most_red_cards": {
+          "raw": "Everton",
+          "value": "Everton",
+          "alt": null
+        },
+        "top_assister": {
+          "raw": "Saka",
+          "value": "Bukayo Saka",
+          "alt": null
+        },
+        "most_clean_sheets": {
+          "raw": "Arsenal",
+          "value": "Arsenal",
+          "alt": null
+        },
+        "most_draws": {
+          "raw": "Crystal Palace",
+          "value": "Crystal Palace",
+          "alt": null
+        },
+        "highest_promoted": {
+          "raw": "Coventry",
+          "value": "Coventry City",
+          "alt": null
+        },
+        "golden_boot": {
+          "raw": "Haaland",
+          "value": "Erling Haaland",
+          "alt": null
+        },
+        "top_at_christmas": {
+          "raw": "Chelsea",
+          "value": "Chelsea",
+          "alt": null
+        },
+        "bottom_at_christmas": {
+          "raw": "Nottingham",
+          "value": "Nottingham Forest",
+          "alt": null
+        },
+        "fewest_goals": {
+          "raw": "Hull City",
+          "value": "Hull City",
+          "alt": null
+        },
+        "worst_defense": {
+          "raw": "Hull City",
+          "value": "Hull City",
+          "alt": null
+        },
+        "most_goals": {
+          "raw": "City",
+          "value": "Manchester City",
+          "alt": null
+        },
+        "best_defense": {
+          "raw": "Arsenal",
+          "value": "Arsenal",
+          "alt": null
+        },
+        "relegation_final_day": {
+          "raw": "Yes",
+          "value": true,
+          "alt": null
+        },
+        "any_under_25": {
+          "raw": "Yes",
+          "value": true,
+          "alt": null
+        },
+        "any_over_90": {
+          "raw": "Yes",
+          "value": true,
+          "alt": null
+        }
+      }
+    },
+    {
+      "person": "SUHUL",
+      "order": [
+        "Arsenal",
+        "Chelsea",
+        "Manchester United",
+        "Manchester City",
+        "Liverpool",
+        "Tottenham Hotspur",
+        "Brighton & Hove Albion",
+        "Everton",
+        "Aston Villa",
+        "AFC Bournemouth",
+        "Brentford",
+        "Nottingham Forest",
+        "Newcastle United",
+        "Crystal Palace",
+        "Sunderland",
+        "Fulham",
+        "Leeds United",
+        "Coventry City",
+        "Ipswich Town",
+        "Hull City"
+      ],
+      "awards": {
+        "pfa_player": {
+          "raw": "Joao Pedro",
+          "value": "Joao Pedro",
+          "alt": null
+        },
+        "first_sacked_manager": {
+          "raw": "Jakirovic",
+          "value": "Sergej Jakirovic",
+          "alt": null
+        },
+        "title_margin": {
+          "raw": "9 points",
+          "value": 9,
+          "alt": null
+        },
+        "biggest_increase": {
+          "raw": "Tottenham",
+          "value": "Tottenham Hotspur",
+          "alt": null
+        },
+        "biggest_dropoff": {
+          "raw": "Sunderland",
+          "value": "Sunderland",
+          "alt": null
+        },
+        "most_red_cards": {
+          "raw": "Leeds",
+          "value": "Leeds United",
+          "alt": null
+        },
+        "top_assister": {
+          "raw": "Bruno",
+          "value": "Bruno Fernandes",
+          "alt": null
+        },
+        "most_clean_sheets": {
+          "raw": "Arsenal",
+          "value": "Arsenal",
+          "alt": null
+        },
+        "most_draws": {
+          "raw": "Crystal Palace",
+          "value": "Crystal Palace",
+          "alt": null
+        },
+        "highest_promoted": {
+          "raw": "Coventry",
+          "value": "Coventry City",
+          "alt": null
+        },
+        "golden_boot": {
+          "raw": "Haaland",
+          "value": "Erling Haaland",
+          "alt": null
+        },
+        "top_at_christmas": {
+          "raw": "Arsenal",
+          "value": "Arsenal",
+          "alt": null
+        },
+        "bottom_at_christmas": {
+          "raw": "Hull City",
+          "value": "Hull City",
+          "alt": null
+        },
+        "fewest_goals": {
+          "raw": "Hull City",
+          "value": "Hull City",
+          "alt": null
+        },
+        "worst_defense": {
+          "raw": "Hull City",
+          "value": "Hull City",
+          "alt": null
+        },
+        "most_goals": {
+          "raw": "Chelsea",
+          "value": "Chelsea",
+          "alt": null
+        },
+        "best_defense": {
+          "raw": "Arsenal",
+          "value": "Arsenal",
+          "alt": null
+        },
+        "relegation_final_day": {
+          "raw": "No",
+          "value": false,
+          "alt": null
+        },
+        "any_under_25": {
+          "raw": "Yes",
+          "value": true,
+          "alt": null
+        },
+        "any_over_90": {
+          "raw": "No",
+          "value": false,
+          "alt": null
+        }
+      }
+    },
+    {
+      "person": "TINASHE",
+      "order": [
+        "Arsenal",
+        "Manchester United",
+        "Chelsea",
+        "Manchester City",
+        "Liverpool",
+        "Tottenham Hotspur",
+        "Newcastle United",
+        "Aston Villa",
+        "Brighton & Hove Albion",
+        "Brentford",
+        "Leeds United",
+        "Everton",
+        "Fulham",
+        "Sunderland",
+        "AFC Bournemouth",
+        "Crystal Palace",
+        "Coventry City",
+        "Nottingham Forest",
+        "Ipswich Town",
+        "Hull City"
+      ],
+      "awards": {
+        "pfa_player": {
+          "raw": "Bruno Fernandes",
+          "value": "Bruno Fernandes",
+          "alt": null
+        },
+        "first_sacked_manager": {
+          "raw": "Sergej Yakirovic",
+          "value": "Sergej Jakirovic",
+          "alt": null
+        },
+        "title_margin": {
+          "raw": "10 points",
+          "value": 10,
+          "alt": null
+        },
+        "biggest_increase": {
+          "raw": "Spurs",
+          "value": "Tottenham Hotspur",
+          "alt": null
+        },
+        "biggest_dropoff": {
+          "raw": "Sunderland",
+          "value": "Sunderland",
+          "alt": null
+        },
+        "most_red_cards": {
+          "raw": "Everton",
+          "value": "Everton",
+          "alt": null
+        },
+        "top_assister": {
+          "raw": "Bruno Fernandes",
+          "value": "Bruno Fernandes",
+          "alt": null
+        },
+        "most_clean_sheets": {
+          "raw": "David Raya",
+          "value": "Arsenal",
+          "alt": null
+        },
+        "most_draws": {
+          "raw": "Newcastle",
+          "value": "Newcastle United",
+          "alt": null
+        },
+        "highest_promoted": {
+          "raw": "Coventry City",
+          "value": "Coventry City",
+          "alt": null
+        },
+        "golden_boot": {
+          "raw": "Erling Haaland",
+          "value": "Erling Haaland",
+          "alt": null
+        },
+        "top_at_christmas": {
+          "raw": "Arsenal",
+          "value": "Arsenal",
+          "alt": null
+        },
+        "bottom_at_christmas": {
+          "raw": "Hull City",
+          "value": "Hull City",
+          "alt": null
+        },
+        "fewest_goals": {
+          "raw": "Hull City",
+          "value": "Hull City",
+          "alt": null
+        },
+        "worst_defense": {
+          "raw": "Hull City",
+          "value": "Hull City",
+          "alt": null
+        },
+        "most_goals": {
+          "raw": "Manchester United",
+          "value": "Manchester United",
+          "alt": null
+        },
+        "best_defense": {
+          "raw": "Arsenal",
+          "value": "Arsenal",
+          "alt": null
+        },
+        "relegation_final_day": {
+          "raw": "Yes",
+          "value": true,
+          "alt": null
+        },
+        "any_under_25": {
+          "raw": "Yes",
+          "value": true,
+          "alt": null
+        },
+        "any_over_90": {
+          "raw": "No",
+          "value": false,
+          "alt": null
+        }
+      }
+    },
+    {
+      "person": "UGWE",
+      "order": [
+        "Manchester United",
+        "Arsenal",
+        "Liverpool",
+        "Manchester City",
+        "Nottingham Forest",
+        "Brentford",
+        "Tottenham Hotspur",
+        "Chelsea",
+        "Brighton & Hove Albion",
+        "AFC Bournemouth",
+        "Newcastle United",
+        "Everton",
+        "Aston Villa",
+        "Fulham",
+        "Crystal Palace",
+        "Leeds United",
+        "Sunderland",
+        "Coventry City",
+        "Ipswich Town",
+        "Hull City"
+      ],
+      "awards": {
+        "pfa_player": {
+          "raw": "Bruno Fernandes",
+          "value": "Bruno Fernandes",
+          "alt": null
+        },
+        "first_sacked_manager": {
+          "raw": "Unai Emery",
+          "value": "Unai Emery",
+          "alt": null
+        },
+        "title_margin": {
+          "raw": "2 Points",
+          "value": 2,
+          "alt": null
+        },
+        "biggest_increase": {
+          "raw": "Nottingham Forest",
+          "value": "Nottingham Forest",
+          "alt": null
+        },
+        "biggest_dropoff": {
+          "raw": "Sunderland",
+          "value": "Sunderland",
+          "alt": null
+        },
+        "most_red_cards": {
+          "raw": "Chelsea",
+          "value": "Chelsea",
+          "alt": null
+        },
+        "top_assister": {
+          "raw": "Bruno Fernandes",
+          "value": "Bruno Fernandes",
+          "alt": null
+        },
+        "most_clean_sheets": {
+          "raw": "Arsenal",
+          "value": "Arsenal",
+          "alt": null
+        },
+        "most_draws": {
+          "raw": "Crystal Palace or Brighton",
+          "value": "Crystal Palace",
+          "alt": "Brighton & Hove Albion"
+        },
+        "highest_promoted": {
+          "raw": "Coventry",
+          "value": "Coventry City",
+          "alt": null
+        },
+        "golden_boot": {
+          "raw": "Igor Thiago",
+          "value": "Igor Thiago",
+          "alt": null
+        },
+        "top_at_christmas": {
+          "raw": "Arsenal",
+          "value": "Arsenal",
+          "alt": null
+        },
+        "bottom_at_christmas": {
+          "raw": "Hull",
+          "value": "Hull City",
+          "alt": null
+        },
+        "fewest_goals": {
+          "raw": "Hull",
+          "value": "Hull City",
+          "alt": null
+        },
+        "worst_defense": {
+          "raw": "Hull",
+          "value": "Hull City",
+          "alt": null
+        },
+        "most_goals": {
+          "raw": "Manchester United",
+          "value": "Manchester United",
+          "alt": null
+        },
+        "best_defense": {
+          "raw": "Arsenal",
+          "value": "Arsenal",
+          "alt": null
+        },
+        "relegation_final_day": {
+          "raw": "No",
+          "value": false,
+          "alt": null
+        },
+        "any_under_25": {
+          "raw": "Yes",
+          "value": true,
+          "alt": null
+        },
+        "any_over_90": {
+          "raw": "No",
+          "value": false,
+          "alt": null
+        }
+      }
+    },
+    {
+      "person": "JACK",
+      "order": [
+        "Arsenal",
+        "Manchester United",
+        "Liverpool",
+        "Manchester City",
+        "Chelsea",
+        "Tottenham Hotspur",
+        "Aston Villa",
+        "Brighton & Hove Albion",
+        "Newcastle United",
+        "Everton",
+        "AFC Bournemouth",
+        "Brentford",
+        "Nottingham Forest",
+        "Leeds United",
+        "Crystal Palace",
+        "Fulham",
+        "Sunderland",
+        "Coventry City",
+        "Ipswich Town",
+        "Hull City"
+      ],
+      "awards": {
+        "pfa_player": {
+          "raw": "Bruno F",
+          "value": "Bruno Fernandes",
+          "alt": null
+        },
+        "first_sacked_manager": {
+          "raw": "Jakirovich",
+          "value": "Sergej Jakirovic",
+          "alt": null
+        },
+        "title_margin": {
+          "raw": "5.0",
+          "value": 5,
+          "alt": null
+        },
+        "biggest_increase": {
+          "raw": "Tottenham",
+          "value": "Tottenham Hotspur",
+          "alt": null
+        },
+        "biggest_dropoff": {
+          "raw": "Sunderland",
+          "value": "Sunderland",
+          "alt": null
+        },
+        "most_red_cards": {
+          "raw": "Hull City",
+          "value": "Hull City",
+          "alt": null
+        },
+        "top_assister": {
+          "raw": "Bruno F",
+          "value": "Bruno Fernandes",
+          "alt": null
+        },
+        "most_clean_sheets": {
+          "raw": "Arsenal",
+          "value": "Arsenal",
+          "alt": null
+        },
+        "most_draws": {
+          "raw": "Everton",
+          "value": "Everton",
+          "alt": null
+        },
+        "highest_promoted": {
+          "raw": "Coventry",
+          "value": "Coventry City",
+          "alt": null
+        },
+        "golden_boot": {
+          "raw": "Haaland",
+          "value": "Erling Haaland",
+          "alt": null
+        },
+        "top_at_christmas": {
+          "raw": "Arsenal",
+          "value": "Arsenal",
+          "alt": null
+        },
+        "bottom_at_christmas": {
+          "raw": "Hull City",
+          "value": "Hull City",
+          "alt": null
+        },
+        "fewest_goals": {
+          "raw": "Conventry",
+          "value": "Coventry City",
+          "alt": null
+        },
+        "worst_defense": {
+          "raw": "Hull City",
+          "value": "Hull City",
+          "alt": null
+        },
+        "most_goals": {
+          "raw": "Man City",
+          "value": "Manchester City",
+          "alt": null
+        },
+        "best_defense": {
+          "raw": "Arsenal",
+          "value": "Arsenal",
+          "alt": null
+        },
+        "relegation_final_day": {
+          "raw": "Yes",
+          "value": true,
+          "alt": null
+        },
+        "any_under_25": {
+          "raw": "Yes",
+          "value": true,
+          "alt": null
+        },
+        "any_over_90": {
+          "raw": "No",
+          "value": false,
+          "alt": null
+        }
+      }
+    }
+  ]
+}

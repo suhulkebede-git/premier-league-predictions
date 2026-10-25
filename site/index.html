@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>P302 Predictions League</title>
+  <meta name="description" content="Live points table for our 2026/27 Premier League predictions.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="band">
+    <span class="page-no" id="page-no">P302</span>
+    <span class="band-title">Predictions League</span>
+    <time class="clock" id="clock"></time>
+  </header>
+
+  <main id="screen" aria-live="polite">
+    <p class="dim">Searching for page 302…</p>
+  </main>
+
+  <nav class="fastext" aria-label="Pages">
+    <button type="button" class="key red" data-page="leaderboard">Leaderboard</button>
+    <button type="button" class="key green" data-page="awards">Awards</button>
+    <button type="button" class="key yellow" data-page="table">PL table</button>
+    <button type="button" class="key cyan" data-page="rules">Rules</button>
+  </nav>
+
+  <script src="app.js"></script>
+</body>
+</html>

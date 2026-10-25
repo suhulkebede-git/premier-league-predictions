@@ -1,0 +1,7 @@
+{
+  "_comment": "Hand-entered awards. Fill 'leaders' when known (several if tied) and set 'settled' true once final. Names can use any spelling in aliases.json.",
+  "most_red_cards": {"leaders": [], "settled": false},
+  "first_sacked_manager": {"leaders": [], "settled": false},
+  "relegation_final_day": {"leaders": [], "settled": false},
+  "pfa_player": {"leaders": [], "settled": false}
+}
