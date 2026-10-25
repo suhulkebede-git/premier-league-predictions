@@ -133,7 +133,8 @@ def write_json_atomic(data: dict, path: Path) -> None:
     fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=path.name, suffix=".tmp")
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            json.dump(data, fh, indent=2, ensure_ascii=False)
+            # Compact: the file grows with every gameweek and is only read by the site.
+            json.dump(data, fh, separators=(",", ":"), ensure_ascii=False)
             fh.write("\n")
         os.replace(tmp, path)
     except OSError:
