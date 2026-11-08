@@ -2,6 +2,28 @@
   "backfill": {},
   "backfill_mode": "ignored",
   "red_cards": {
+    "10": {
+      "AFC Bournemouth": 0,
+      "Arsenal": 0,
+      "Aston Villa": 1,
+      "Brentford": 3,
+      "Brighton & Hove Albion": 1,
+      "Chelsea": 1,
+      "Coventry City": 1,
+      "Crystal Palace": 2,
+      "Everton": 0,
+      "Fulham": 1,
+      "Hull City": 0,
+      "Ipswich Town": 1,
+      "Leeds United": 0,
+      "Liverpool": 1,
+      "Manchester City": 1,
+      "Manchester United": 1,
+      "Newcastle United": 1,
+      "Nottingham Forest": 0,
+      "Sunderland": 3,
+      "Tottenham Hotspur": 1
+    },
     "8": {
       "AFC Bournemouth": 0,
       "Arsenal": 0,
@@ -48,6 +70,743 @@
     }
   },
   "snapshots": {
+    "10": [
+      {
+        "assists": 0,
+        "goals": 9,
+        "player": "Erling Haaland"
+      },
+      {
+        "assists": 0,
+        "goals": 7,
+        "player": "Alexander Isak"
+      },
+      {
+        "assists": 1,
+        "goals": 6,
+        "player": "Thierno Barry"
+      },
+      {
+        "assists": 1,
+        "goals": 6,
+        "player": "Nicolas Jackson"
+      },
+      {
+        "assists": 0,
+        "goals": 5,
+        "player": "Marcus Tavernier"
+      },
+      {
+        "assists": 3,
+        "goals": 5,
+        "player": "João Pedro"
+      },
+      {
+        "assists": 1,
+        "goals": 5,
+        "player": "Morgan Rogers"
+      },
+      {
+        "assists": 2,
+        "goals": 5,
+        "player": "Rayan Cherki"
+      },
+      {
+        "assists": 4,
+        "goals": 5,
+        "player": "Evanilson"
+      },
+      {
+        "assists": 4,
+        "goals": 4,
+        "player": "Pascal Groß"
+      },
+      {
+        "assists": 2,
+        "goals": 4,
+        "player": "Bruno Fernandes"
+      },
+      {
+        "assists": 0,
+        "goals": 4,
+        "player": "Bryan Mbeumo"
+      },
+      {
+        "assists": 0,
+        "goals": 3,
+        "player": "Kai Havertz"
+      },
+      {
+        "assists": 0,
+        "goals": 3,
+        "player": "Bukayo Saka"
+      },
+      {
+        "assists": 0,
+        "goals": 3,
+        "player": "Martin Ødegaard"
+      },
+      {
+        "assists": 1,
+        "goals": 3,
+        "player": "Kiernan Dewsbury Hall"
+      },
+      {
+        "assists": 0,
+        "goals": 3,
+        "player": "Jack Hinshelwood"
+      },
+      {
+        "assists": 3,
+        "goals": 3,
+        "player": "Cole Palmer"
+      },
+      {
+        "assists": 1,
+        "goals": 3,
+        "player": "Pedro Neto"
+      },
+      {
+        "assists": 0,
+        "goals": 3,
+        "player": "Kevin Schade"
+      },
+      {
+        "assists": 1,
+        "goals": 3,
+        "player": "Dominic Calvert-Lewin"
+      },
+      {
+        "assists": 1,
+        "goals": 3,
+        "player": "Enzo Le Fée"
+      },
+      {
+        "assists": 0,
+        "goals": 3,
+        "player": "Liam Delap"
+      },
+      {
+        "assists": 2,
+        "goals": 3,
+        "player": "Mohamed Belloumi"
+      },
+      {
+        "assists": 2,
+        "goals": 3,
+        "player": "Charalampos Kostoulas"
+      },
+      {
+        "assists": 1,
+        "goals": 3,
+        "player": "Yasin Ayari"
+      },
+      {
+        "assists": 0,
+        "goals": 3,
+        "player": "Brian Brobbey"
+      },
+      {
+        "assists": 0,
+        "goals": 3,
+        "player": "Jack Rudoni"
+      },
+      {
+        "assists": 1,
+        "goals": 2,
+        "player": "Emersonn"
+      },
+      {
+        "assists": 1,
+        "goals": 2,
+        "player": "Jack Clarke"
+      },
+      {
+        "assists": 1,
+        "goals": 2,
+        "player": "Keane Lewis-Potter"
+      },
+      {
+        "assists": 0,
+        "goals": 2,
+        "player": "Vitaly Janelt"
+      },
+      {
+        "assists": 3,
+        "goals": 2,
+        "player": "Maxim De Cuyper"
+      },
+      {
+        "assists": 0,
+        "goals": 2,
+        "player": "Anthony Elanga"
+      },
+      {
+        "assists": 0,
+        "goals": 2,
+        "player": "Joe Willock"
+      },
+      {
+        "assists": 1,
+        "goals": 2,
+        "player": "Joshua King"
+      },
+      {
+        "assists": 0,
+        "goals": 2,
+        "player": "Dan Ndoye"
+      },
+      {
+        "assists": 0,
+        "goals": 2,
+        "player": "Víctor Muñoz"
+      },
+      {
+        "assists": 0,
+        "goals": 2,
+        "player": "Malick Yalcouyé"
+      },
+      {
+        "assists": 1,
+        "goals": 2,
+        "player": "Leif Davis"
+      },
+      {
+        "assists": 2,
+        "goals": 2,
+        "player": "Harvey Barnes"
+      },
+      {
+        "assists": 0,
+        "goals": 2,
+        "player": "Jayden Bogle"
+      },
+      {
+        "assists": 0,
+        "goals": 2,
+        "player": "Tyrick Mitchell"
+      },
+      {
+        "assists": 0,
+        "goals": 2,
+        "player": "Zian Flemming"
+      },
+      {
+        "assists": 0,
+        "goals": 2,
+        "player": "Alysson"
+      },
+      {
+        "assists": 0,
+        "goals": 2,
+        "player": "Bruno Guimarães"
+      },
+      {
+        "assists": 0,
+        "goals": 2,
+        "player": "Noah Okafor"
+      },
+      {
+        "assists": 2,
+        "goals": 2,
+        "player": "Thiago"
+      },
+      {
+        "assists": 3,
+        "goals": 2,
+        "player": "Johan Manzambi"
+      },
+      {
+        "assists": 0,
+        "goals": 2,
+        "player": "Jan Paul van Hecke"
+      },
+      {
+        "assists": 3,
+        "goals": 2,
+        "player": "Antoine Semenyo"
+      },
+      {
+        "assists": 1,
+        "goals": 2,
+        "player": "Jordan Henderson"
+      },
+      {
+        "assists": 4,
+        "goals": 2,
+        "player": "John McGinn"
+      },
+      {
+        "assists": 2,
+        "goals": 2,
+        "player": "Diego Gómez"
+      },
+      {
+        "assists": 2,
+        "goals": 2,
+        "player": "Julio Enciso"
+      },
+      {
+        "assists": 2,
+        "goals": 2,
+        "player": "Oliver McBurnie"
+      },
+      {
+        "assists": 0,
+        "goals": 1,
+        "player": "Semi Ajayi"
+      },
+      {
+        "assists": 0,
+        "goals": 1,
+        "player": "Nobel Mendy"
+      },
+      {
+        "assists": 1,
+        "goals": 1,
+        "player": "Nilson Angulo"
+      },
+      {
+        "assists": 0,
+        "goals": 1,
+        "player": "Anton Stach"
+      },
+      {
+        "assists": 0,
+        "goals": 1,
+        "player": "Michael Kayode"
+      },
+      {
+        "assists": 1,
+        "goals": 1,
+        "player": "Marc Guéhi"
+      },
+      {
+        "assists": 3,
+        "goals": 1,
+        "player": "Joško Gvardiol"
+      },
+      {
+        "assists": 3,
+        "goals": 1,
+        "player": "Cody Gakpo"
+      },
+      {
+        "assists": 1,
+        "goals": 1,
+        "player": "Dominik Szoboszlai"
+      },
+      {
+        "assists": 0,
+        "goals": 1,
+        "player": "Gonzalo García"
+      },
+      {
+        "assists": 3,
+        "goals": 1,
+        "player": "Morgan Gibbs-White"
+      },
+      {
+        "assists": 0,
+        "goals": 1,
+        "player": "Alex Scott"
+      },
+      {
+        "assists": 1,
+        "goals": 1,
+        "player": "James Tarkowski"
+      },
+      {
+        "assists": 0,
+        "goals": 1,
+        "player": "Liam Millar"
+      },
+      {
+        "assists": 1,
+        "goals": 1,
+        "player": "Yoane Wissa"
+      },
+      {
+        "assists": 0,
+        "goals": 1,
+        "player": "Wilson Isidor"
+      },
+      {
+        "assists": 1,
+        "goals": 1,
+        "player": "Romeo Lavia"
+      },
+      {
+        "assists": 0,
+        "goals": 1,
+        "player": "Chuba Akpom"
+      },
+      {
+        "assists": 0,
+        "goals": 1,
+        "player": "Jacob Ramsey"
+      },
+      {
+        "assists": 0,
+        "goals": 1,
+        "player": "Luka Vušković"
+      },
+      {
+        "assists": 0,
+        "goals": 1,
+        "player": "César Palacios"
+      },
+      {
+        "assists": 0,
+        "goals": 1,
+        "player": "Ben Chilwell"
+      },
+      {
+        "assists": 0,
+        "goals": 1,
+        "player": "Tyrique George"
+      },
+      {
+        "assists": 0,
+        "goals": 1,
+        "player": "Benjamin Šeško"
+      },
+      {
+        "assists": 1,
+        "goals": 1,
+        "player": "Ainsley Maitland-Niles"
+      },
+      {
+        "assists": 0,
+        "goals": 1,
+        "player": "Anan Khalaili"
+      },
+      {
+        "assists": 0,
+        "goals": 1,
+        "player": "Jørgen Strand Larsen"
+      },
+      {
+        "assists": 0,
+        "goals": 1,
+        "player": "Igor Jesus"
+      },
+      {
+        "assists": 2,
+        "goals": 1,
+        "player": "Justin Kluivert"
+      },
+      {
+        "assists": 0,
+        "goals": 1,
+        "player": "Lewis Dunk"
+      },
+      {
+        "assists": 0,
+        "goals": 1,
+        "player": "Bazoumana Touré"
+      },
+      {
+        "assists": 2,
+        "goals": 1,
+        "player": "Jaidon Anthony"
+      },
+      {
+        "assists": 0,
+        "goals": 1,
+        "player": "Fabio Carvalho"
+      },
+      {
+        "assists": 0,
+        "goals": 1,
+        "player": "Emiliano Buendía"
+      },
+      {
+        "assists": 0,
+        "goals": 1,
+        "player": "Conor Gallagher"
+      },
+      {
+        "assists": 1,
+        "goals": 1,
+        "player": "Chema Andrés"
+      },
+      {
+        "assists": 1,
+        "goals": 1,
+        "player": "Lewis Hall"
+      },
+      {
+        "assists": 0,
+        "goals": 1,
+        "player": "Mohamed Cho"
+      },
+      {
+        "assists": 1,
+        "goals": 1,
+        "player": "Jay Dasilva"
+      },
+      {
+        "assists": 0,
+        "goals": 1,
+        "player": "Enzo Fernández"
+      },
+      {
+        "assists": 2,
+        "goals": 1,
+        "player": "Matheus Cunha"
+      },
+      {
+        "assists": 0,
+        "goals": 1,
+        "player": "James Justin"
+      },
+      {
+        "assists": 2,
+        "goals": 1,
+        "player": "Riccardo Calafiori"
+      },
+      {
+        "assists": 0,
+        "goals": 1,
+        "player": "Jaouen Hadjam"
+      },
+      {
+        "assists": 0,
+        "goals": 1,
+        "player": "Ryan Sessegnon"
+      },
+      {
+        "assists": 2,
+        "goals": 1,
+        "player": "Abdoul Ouattara"
+      },
+      {
+        "assists": 0,
+        "goals": 1,
+        "player": "Dara O'Shea"
+      },
+      {
+        "assists": 1,
+        "goals": 1,
+        "player": "Yegor Yarmolyuk"
+      },
+      {
+        "assists": 0,
+        "goals": 1,
+        "player": "Kristoffer Ajer"
+      },
+      {
+        "assists": 1,
+        "goals": 1,
+        "player": "Dominic Solanke"
+      },
+      {
+        "assists": 0,
+        "goals": 1,
+        "player": "Joe Gelhardt"
+      },
+      {
+        "assists": 3,
+        "goals": 1,
+        "player": "Daichi Kamada"
+      },
+      {
+        "assists": 0,
+        "goals": 1,
+        "player": "Jefferson Lerma"
+      },
+      {
+        "assists": 0,
+        "goals": 1,
+        "player": "Yeremi Pino"
+      },
+      {
+        "assists": 1,
+        "goals": 1,
+        "player": "Jeremy Doku"
+      },
+      {
+        "assists": 0,
+        "goals": 1,
+        "player": "Sidiki Cherif"
+      },
+      {
+        "assists": 0,
+        "goals": 1,
+        "player": "Sven Botman"
+      },
+      {
+        "assists": 0,
+        "goals": 1,
+        "player": "Ellis Simms"
+      },
+      {
+        "assists": 0,
+        "goals": 1,
+        "player": "Stephen Mfuni"
+      },
+      {
+        "assists": 0,
+        "goals": 1,
+        "player": "Alex Iwobi"
+      },
+      {
+        "assists": 2,
+        "goals": 1,
+        "player": "Phil Foden"
+      },
+      {
+        "assists": 0,
+        "goals": 1,
+        "player": "Daizen Maeda"
+      },
+      {
+        "assists": 0,
+        "goals": 1,
+        "player": "Noni Madueke"
+      },
+      {
+        "assists": 0,
+        "goals": 1,
+        "player": "James Maddison"
+      },
+      {
+        "assists": 0,
+        "goals": 1,
+        "player": "Omar Marmoush"
+      },
+      {
+        "assists": 0,
+        "goals": 1,
+        "player": "Ben Davies"
+      },
+      {
+        "assists": 0,
+        "goals": 1,
+        "player": "Neco Williams"
+      },
+      {
+        "assists": 0,
+        "goals": 1,
+        "player": "Ezri Konsa"
+      },
+      {
+        "assists": 0,
+        "goals": 1,
+        "player": "Gabriel Magalhães"
+      },
+      {
+        "assists": 0,
+        "goals": 1,
+        "player": "Oscar Bobb"
+      },
+      {
+        "assists": 0,
+        "goals": 1,
+        "player": "Mathys Tel"
+      },
+      {
+        "assists": 1,
+        "goals": 1,
+        "player": "William Osula"
+      },
+      {
+        "assists": 0,
+        "goals": 1,
+        "player": "Rayan"
+      },
+      {
+        "assists": 0,
+        "goals": 1,
+        "player": "Dango Ouattara"
+      },
+      {
+        "assists": 0,
+        "goals": 1,
+        "player": "Amine Adli"
+      },
+      {
+        "assists": 0,
+        "goals": 1,
+        "player": "Tatsuhiro Sakamoto"
+      },
+      {
+        "assists": 0,
+        "goals": 1,
+        "player": "Taiwo Awoniyi"
+      },
+      {
+        "assists": 0,
+        "goals": 1,
+        "player": "Florentino"
+      },
+      {
+        "assists": 0,
+        "goals": 1,
+        "player": "Tim Iroegbunam"
+      },
+      {
+        "assists": 0,
+        "goals": 1,
+        "player": "Archie Gray"
+      },
+      {
+        "assists": 0,
+        "goals": 1,
+        "player": "Yann Gboho"
+      },
+      {
+        "assists": 1,
+        "goals": 1,
+        "player": "Jacob Murphy"
+      },
+      {
+        "assists": 0,
+        "goals": 1,
+        "player": "Rodrigo Muniz"
+      },
+      {
+        "assists": 0,
+        "goals": 1,
+        "player": "Jair Paula"
+      },
+      {
+        "assists": 0,
+        "goals": 1,
+        "player": "Alexis Mac Allister"
+      },
+      {
+        "assists": 3,
+        "goals": 1,
+        "player": "Florian Wirtz"
+      },
+      {
+        "assists": 1,
+        "goals": 1,
+        "player": "Eddie Nketiah"
+      },
+      {
+        "assists": 1,
+        "goals": 1,
+        "player": "Youri Tielemans"
+      },
+      {
+        "assists": 0,
+        "goals": 1,
+        "player": "Leon Goretzka"
+      },
+      {
+        "assists": 0,
+        "goals": 1,
+        "player": "Joshua Zirkzee"
+      },
+      {
+        "assists": 2,
+        "goals": 1,
+        "player": "Patrick Dorgu"
+      }
+    ],
     "8": [
       {
         "assists": 0,
