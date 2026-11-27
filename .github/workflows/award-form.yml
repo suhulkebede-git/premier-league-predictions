@@ -2,7 +2,7 @@ name: Award form
 
 on:
   issues:
-    types: [opened, edited]
+    types: [opened, edited, labeled]
 
 permissions:
   contents: write # commit data/manual_awards.json (and aliases.json for a new name)
@@ -15,7 +15,10 @@ concurrency:
 
 jobs:
   apply:
-    if: contains(github.event.issue.labels.*.name, 'award')
+    # The form adds the "award" label; adding it by hand to an older issue also runs this.
+    if: >-
+      contains(github.event.issue.labels.*.name, 'award') &&
+      (github.event.action != 'labeled' || github.event.label.name == 'award')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
